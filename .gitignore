@@ -205,3 +205,20 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+extra/
+
+# Claude Code
+.claude/*
+!.claude/skills/
+.claude/skills/*
+.claude/skills/skill-creator/
+
+!.claude/skills/mem/
+!.claude/skills/storypad/
+!.claude/skills/tracky/
+!.claude/skills/tasky/
+!.claude/skills/brain/
+!.claude/skills/capture/
+!.claude/skills/thinky/
+
