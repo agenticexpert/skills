@@ -1,3 +1,8 @@
+---
+name: tracky
+description: Living knowledge tracker. Commands — note, add, triage, list, show, update, supersede, search.
+---
+
 # tracky — Living Knowledge Tracker
 
 A lightweight skill for tracking what you know about your project — decisions, specs, open questions, rejected approaches, and anything else worth remembering. Entries stay current: they can be updated, superseded, or resolved as the project evolves.
@@ -55,7 +60,7 @@ Creates `TRACKY.md` at the git root and scaffolds the data directory interactive
 1. Check if `TRACKY.md` already exists — warn and ask before overwriting
 2. Ask the user:
    - Project / product name
-   - Data directory (default: `agents/tracky/`)
+   - Data directory (default: `agents/docs/tracky/`)
    - Any standing instructions for tracky to always follow
 3. Write `TRACKY.md` using the template below
 4. Create the data directory if it doesn't exist
@@ -164,7 +169,7 @@ RELATED: {comma-separated slugs or task IDs} (optional)
     └── search.md             # List, show, search — progressive disclosure
 
 TRACKY.md                     # Git root — config + registry (the manifest)
-{data_dir}/                   # Default: agents/tracky/
+{data_dir}/                   # Default: agents/docs/tracky/
 └── {slug}.md                 # Individual tracked entries (flat)
 ```
 

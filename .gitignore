@@ -222,3 +222,10 @@ extra/
 !.claude/skills/capture/
 !.claude/skills/thinky/
 
+# Codex
+!.agents/
+.agents/**
+!.agents/skills/
+!.agents/skills/tasky/
+!.agents/skills/tasky/**
+

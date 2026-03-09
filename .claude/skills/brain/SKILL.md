@@ -1,3 +1,8 @@
+---
+name: brain
+description: Project knowledge hub. Commands — init, show, ask, map, add fact, add ref, freshen, confirm.
+---
+
 # brain — Project Knowledge Hub
 
 Central knowledge index for the project. Serves two purposes: helps skills navigate quickly, and lets humans ask questions or seed new work from established knowledge.

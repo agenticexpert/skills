@@ -1,6 +1,6 @@
 ---
 name: tasky
-description: Task and roadmap manager. Commands — list, show, add, done, next, update, create, roadmap, milestone, timeline.
+description: Task and roadmap manager for software projects. Use when asked to manage tasks, features, milestones, roadmaps, or project progress. Invoke with $tasky or natural language — "show me the roadmap", "what's next in auth", "add a task for login flow".
 ---
 
 # tasky — Development Task Manager
@@ -9,37 +9,39 @@ A generic task and roadmap management skill. Tracks features, tasks, milestones,
 
 ## Usage
 
+Invoke explicitly with `$tasky <command>` or naturally — tasky activates when you ask about tasks, roadmaps, or project progress.
+
 **Setup**
 ```
-/tasky init
+$tasky init
 ```
 
 **Tasks**
 ```
-/tasky list
-/tasky list <feature>
-/tasky next <feature>
-/tasky show <feature> <id>
-/tasky done <feature> <id>
-/tasky update <feature> <id>
-/tasky create <feature>
-/tasky add <feature> "<description>"
-/tasky resequence <feature>
-/tasky deps <feature>
+$tasky list
+$tasky list <feature>
+$tasky next <feature>
+$tasky show <feature> <id>
+$tasky done <feature> <id>
+$tasky update <feature> <id>
+$tasky create <feature>
+$tasky add <feature> "<description>"
+$tasky resequence <feature>
+$tasky deps <feature>
 ```
 
 **Roadmaps & Milestones**
 ```
-/tasky roadmap list
-/tasky roadmap create <name>
-/tasky roadmap show <roadmap>
-/tasky roadmap status <roadmap>
-/tasky milestone list <roadmap>
-/tasky milestone create <roadmap> <name>
-/tasky milestone show <roadmap> <milestone>
-/tasky milestone assign <roadmap> <milestone> <feature> <task-id>
-/tasky milestone unassign <roadmap> <milestone> <feature> <task-id>
-/tasky timeline <roadmap>
+$tasky roadmap list
+$tasky roadmap create <name>
+$tasky roadmap show <roadmap>
+$tasky roadmap status <roadmap>
+$tasky milestone list <roadmap>
+$tasky milestone create <roadmap> <name>
+$tasky milestone show <roadmap> <milestone>
+$tasky milestone assign <roadmap> <milestone> <feature> <task-id>
+$tasky milestone unassign <roadmap> <milestone> <feature> <task-id>
+$tasky timeline <roadmap>
 ```
 
 - Keep answers short and scannable
@@ -49,18 +51,13 @@ A generic task and roadmap management skill. Tracks features, tasks, milestones,
 
 Tasky supports a project-level configuration file at the **git root**: `TASKY.md`.
 
-### What it does
+`TASKY.md` lets project owners define standing instructions that tasky follows on every invocation — conventions, defaults, workflow rules — without repeating them in every prompt.
 
-`TASKY.md` lets project owners define standing instructions that tasky follows on every invocation — conventions, defaults, workflow rules — without repeating them in every prompt. Think of it as a project-specific extension of the skill.
-
-### What it can contain
-
-- **Default roadmap**: avoid repeating it on every roadmap command
-- **Data directory**: if not using the default `agents/docs/tasky/`
-- **Conventions**: e.g. "always run `bun run check` after marking a task done"
-- **Workflow rules**: e.g. "ask before marking a task done if it has open sub-items"
-- **Custom status values or tag conventions**
-- Any project-specific instructions you want tasky to always follow
+It can contain:
+- Default roadmap (avoid repeating it on every roadmap command)
+- Data directory (if not using the default `agents/docs/tasky/`)
+- Conventions: e.g. "always run `bun run check` after marking a task done"
+- Workflow rules: e.g. "ask before marking a task done if it has open sub-items"
 
 ### `tasky init`
 
@@ -72,7 +69,6 @@ Creates `TASKY.md` at the git root interactively:
    - Default roadmap name (or "none")
    - Data directory (default: `agents/docs/tasky/`)
    - Any standing conventions or workflow rules they want enforced
-   - Anything else they want tasky to always remember
 3. Write `TASKY.md` from a structured template using their answers
 4. Confirm the file was created and show the path
 
@@ -147,27 +143,27 @@ Detects intent and routes to the appropriate reference:
 | `create <feature>` | Create a new feature task set |
 | `add <feature> "<desc>"` | Add a task to a feature |
 | `resequence <feature>` | Reorder tasks in a feature |
-| `deps <feature>` | Show dependency graph and validate — also triggered by natural language: "show deps", "show dependencies", "what's blocking task X" |
+| `deps <feature>` | Show dependency graph and validate — also triggered by: "show deps", "what's blocking task X" |
 
 ### Roadmaps & Milestones
 
 | Command | Description |
 |---------|-------------|
-| `roadmap list` | List all roadmaps — format spec in `references/roadmap.md` |
+| `roadmap list` | List all roadmaps |
 | `roadmap create <name>` | Create a new roadmap |
-| `roadmap show <roadmap>` | Gantt chart of milestones + task progress — format spec in `references/roadmap.md` |
+| `roadmap show <roadmap>` | Gantt chart of milestones + task progress |
 | `roadmap status <roadmap>` | One-line status summary |
 | `milestone list <roadmap>` | List milestones for a roadmap |
 | `milestone create <roadmap> <name>` | Add a milestone to a roadmap |
 | `milestone show <roadmap> <milestone>` | Show milestone + assigned tasks |
 | `milestone assign ...` | Assign a task to a milestone |
 | `milestone unassign ...` | Remove task from a milestone |
-| `timeline <roadmap>` | Visual timeline of milestones + tasks — format spec in `references/roadmap.md` |
+| `timeline <roadmap>` | Visual timeline of milestones + tasks |
 
 ## Files
 
 ```
-.claude/skills/tasky/
+.agents/skills/tasky/
 ├── SKILL.md                    # This file
 └── references/
     ├── task-management.md      # Task commands and formats
@@ -191,24 +187,24 @@ agents/docs/tasky/
 │   └── {name}/
 │       └── milestones/
 │           ├── index.md   # Milestone index + status
-│           └── NN - {name}.md  # Individual milestone files
+│           └── NN - {name}.md
 ├── decisions/
-│   ├── index.md           # All decisions across topics
-│   └── {topic}.md         # Decisions grouped by area
+│   ├── index.md
+│   └── {topic}.md
 └── issues/
-    ├── index.md           # All issues, scannable
-    └── NNN-slug.md        # Individual issue files
+    ├── index.md
+    └── NNN-slug.md
 ```
 
 ## Intent Detection
 
-1. Parse command prefix or natural language intent:
+1. Parse command or natural language intent:
    - `roadmap`, `milestone`, `timeline` → load `references/roadmap.md`
    - `list`, `next`, `show`, `done`, `update`, `create`, `add`, `resequence`, `deps` → load `references/task-management.md`
    - `decision`, `remember`, `we decided`, `note that`, `why did we`, `what did we decide` → load `references/decisions.md`
    - `issue`, `bug`, `defect`, `there's a bug`, `that's fixed`, `something's broken` → load `references/issues.md`
 2. Disambiguate milestone overview vs. detail:
-   - "show milestones", "show project milestones", "milestone overview", or any request to see all milestones for a roadmap → treat as `roadmap show` (Gantt via `gantt.py`)
-   - "show milestone X" or "milestone show <roadmap> <milestone>" (a specific milestone) → treat as `milestone show`
-   - When in doubt, default to `roadmap show` (Gantt) — never render milestone summaries as plain tables
+   - "show milestones", "show project milestones", "milestone overview" → treat as `roadmap show` (Gantt via `gantt.py`)
+   - "show milestone X" (specific milestone) → treat as `milestone show`
+   - When in doubt, default to `roadmap show` — never render milestone summaries as plain tables
 3. Execute with the reference as context
