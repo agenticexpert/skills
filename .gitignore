@@ -214,7 +214,7 @@ extra/
 .claude/skills/*
 .claude/skills/skill-creator/
 
-!.claude/skills/mem/
+.claude/skills/mem/
 !.claude/skills/storypad/
 !.claude/skills/tracky/
 !.claude/skills/tasky/
