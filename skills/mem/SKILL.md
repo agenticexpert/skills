@@ -1,6 +1,7 @@
 ---
 name: mem
 description: Durable conversation memory — structured summaries that survive /clear and compaction, hand off between agents and sessions, split into threads, and rejoin. Activate for summarizing or checkpointing a session, continuing from a checkpoint, capturing an idea thread, activating semantic triggers, or reviewing decisions, requirements, todos, keys, or references.
+license: MIT
 ---
 
 # Mem Skill

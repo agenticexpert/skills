@@ -1,6 +1,7 @@
 ---
 name: tasky
 description: "Agentic Expert — intent-driven exploratory delivery. Manages projects, roadmaps, tracks, milestones, and tasks through natural conversation. Activate for: decomposing a vision into tracked structure, creating or restructuring the project hierarchy, defining, executing, or validating tracked tasks, checking status or progress of tracked work, or managing task flows."
+license: MIT
 ---
 
 # Tasky

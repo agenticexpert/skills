@@ -181,7 +181,7 @@ Config/root discovery is **cwd-independent**:
 
 ## License
 
-Tasky is licensed under Apache 2.0. See `LICENSE`.
+Tasky is licensed under MIT. See `LICENSE`.
 
 ---
 

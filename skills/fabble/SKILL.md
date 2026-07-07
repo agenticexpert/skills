@@ -1,6 +1,7 @@
 ---
 name: fabble
 description: The prompt-engineering family — author, migrate, enhance, and gate prompts for Claude models. Use when the user wants to (1) write or create a prompt, plan, or task spec from a goal ("write a prompt for X", "turn this into something Fable 5 can run"), (2) upgrade or port an existing prompt to Fable 5 ("upgrade this prompt for Fable 5", "this was tuned for sonnet/opus", "fablize this"), (3) improve an existing prompt that stays on Sonnet or Opus ("make this prompt better without switching models", "fabelike this"), (4) review, audit, score, or gate a prompt before an expensive run ("is this ready for Fable 5?", "audit this prompt"), (5) elevate an ask into a well-specified goal (/until), or (6) enable the /until slash command ("/fabble install", "set up the fabble command"). Every job routes to a references/ playbook.
+license: MIT
 ---
 
 # fabble

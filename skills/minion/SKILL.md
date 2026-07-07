@@ -1,6 +1,7 @@
 ---
 name: minion
 description: "Delegate a tracked task (or whole milestone) to a headless sub-agent so the main conversation stays small. Activate on 'minion <task>', 'delegate <task>', 'run <task> in a subagent', or any ask to execute tracked work without burning main-window context. The sub-agent runs the spec end-to-end and reports a compact summary back."
+license: MIT
 ---
 
 # Minion

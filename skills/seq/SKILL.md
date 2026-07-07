@@ -1,6 +1,7 @@
 ---
 name: seq
 description: "Run a tracked task INLINE in the main conversation through a named step-sequence (default: audit→work→audit→report). Inline twin of /minion — same loop, but executed here (sees chat context) instead of delegated to a sub-agent. Activate on '/seq <task>', 'seq <task>', 'do <task> inline', 'run <task> here'. Sequences are named and editable, or ad-hoc via 'as <key,key,...>'; mix /seq and /minion per task."
+license: MIT
 ---
 
 # Seq
