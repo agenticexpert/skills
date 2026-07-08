@@ -72,6 +72,8 @@ If a flow resolves, read the flow file and execute through its steps in order. `
 Work through the task (or flow sequence if declared). When each criterion is satisfied, check it off:
 - `[ ]` → `[x]`
 
+Check a box only when you can name its evidence — the command that ran, the file that exists, the output that proves it. A box checked ahead of the work is exactly the rubber-stamping validate.md exists to catch.
+
 If something unexpected surfaces — wrong assumption, missing piece, design conflict — tell the user before continuing. Don't paper over it.
 
 ---
@@ -90,6 +92,8 @@ Checked criteria preserve what was done. When work resumes, pick up from the fir
 ## Completing
 
 All criteria checked → set status to READY, not DONE. READY means the work is done but has not been validated yet. The user must confirm before DONE is set.
+
+Before setting READY, re-read the task file from disk — every criterion `[x]` in the file, not in your memory of the session. A criterion still `[ ]` means the work isn't done, whatever the conversation says.
 
 ```
 python manage_tasks.py set-status <project> <roadmap> <track> <milestone> <slug> ready

@@ -43,6 +43,7 @@ Code, commands, examples — verbatim.
 
 ## Delivery
 
-1. Write the file to the output path.
-2. Report: "`{path}` ready — `/mem continue from {path}` or a plain read resumes it." Note when a prior split was extended.
-3. `and prune` → confirm the topic is logged for pruning at the next summarize.
+1. Fresh-reader check first: scan the draft for anything that resolves only in this conversation — "as discussed", "the earlier error", "see above". Inline each or cut it; the file must stand without the context it came from.
+2. Write the file to the output path.
+3. Report: "`{path}` ready — `/mem continue from {path}` or a plain read resumes it." Note when a prior split was extended.
+4. `and prune` → confirm the topic is logged for pruning at the next summarize.

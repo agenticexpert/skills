@@ -22,7 +22,8 @@ Every instruction in the source lands in exactly one bucket.
 - Anti-laziness: "don't be lazy", "go above and beyond", "make sure you actually do X".
 - Tool nudges: "if in doubt, use [tool]", "default to [tool]", "remember to use your tools".
 - Forced cadence: "after every N tool calls, summarize progress". Fable 5 gives well-calibrated updates unprompted.
-- Step-by-step how-to plans where goal plus constraints suffice. Keep ordering only where sequence encodes a real dependency (deploy order, protocol steps).
+- Step-by-step how-to plans where goal plus constraints suffice. The test: could the executor recover the order from the goal and constraints alone? Recoverable → cut. Not recoverable (deploy order, protocol steps, a required call sequence) → the ordering carries information; keep it.
+- Example stacks. Output shape nontrivial → keep the single best worked example; Fable infers the pattern from one. Output Format already a complete literal template → cut the examples entirely.
 - Repetition: a rule stated in three places keeps its single best statement.
 - Role cosplay that carries no facts ("you are a world-class senior engineer").
 
@@ -56,20 +57,20 @@ From the reference's failure-mode menu, keyed to the prompt's task shape:
 - Long autonomous run → grounded-progress block, no-early-stop block, verification cadence (fresh sub-agent verifier if the harness supports one), final-summary readability block, memory surface. Multi-step (n discrete items) → work-ledger block.
 - Goal spans sessions → memory file instruction.
 
-Never add a snippet whose failure mode is not plausible for *this* prompt — that recreates the over-prescription the upgrade exists to remove.
+Every ADD names its failure mode *and* the evidence that makes it plausible — quote the source phrase or name the task property that triggers it. No evidence → no ADD. The rewriting model's own instinct is more scaffolding; on Fable that instinct recreates the over-prescription this upgrade exists to remove.
 
 ## Delivery gate — all must pass before delivering
 
-Walk the items one by one against the actual rewritten text and confirm each — an item you did not walk is a failed item.
+Walk the items one by one against the actual rewritten text and confirm each — an item you did not walk is a failed item. The walk's artifact is the gate line closing the ledger (format below); a verdict without its gate line is an unwalked gate.
 
 - Zero instructions that restate Fable 5 default behavior.
 - Zero classifier hazards: no reasoning-echo, no offensive-cyber framing, no wet-lab-bio framing (bio-adjacent tasks get routed to a different model, not rephrased).
-- Every ADD traces to a named failure mode; every CUT appears in the ledger.
+- Every ADD traces to a named failure mode plus its quoted evidence; every CUT and COLLAPSE appears in the ledger.
 - Diff against the source: all original facts, constraints, and format requirements survive.
 - Usually shorter than the source. If it grew, each addition must be justified by a long-run or boundary failure mode; unexplained growth fails the gate.
 - Length: 150–450 words (the Fable band). Growth past the source needs a per-addition justification; growth past the band fails regardless.
 - Goal exceeds one run (distinct deliverable types, a mid-flow user decision, volume beyond one long run) → deliver an ordered sequence per `promptify.md`'s sequence rules, not one oversized prompt.
-- Run simulation: read the result as Fable 5 in a fresh session. Zero points where you would guess, ask, or reach for material that isn't there.
+- Run simulation — read the rewrite as a literal executor in a fresh session, no memory of this chat: every referenced material exists in the prompt or an `[Attach:]`; every broad rule states its reach (literalism won't extend it); no point where the executor would guess or ask. Any hit → fix and re-walk.
 
 ## Ledger format
 
@@ -81,7 +82,19 @@ One line per change, most impactful first:
 ~ collapsed: 4 verbosity rules → lead-with-outcome line
 ~ rewrote: "explain your reasoning step by step" → one-sentence rationale in deliverable (reasoning_extraction hazard)
 + added: purpose line — source carried no intent context
-+ added: grounded-progress block — long autonomous run
++ added: grounded-progress block — long autonomous run ("work the full suite unattended")
 ```
 
-If effort matters for this prompt, steer it in the prompt with the reference's §8 effort snippets, and close the ledger with one note for the harness knob: `note: run at high effort (default); xhigh if capability-sensitive`.
+If effort matters for this prompt, steer it in the prompt with the reference's §8 effort snippets, and add one note for the harness knob: `note: run at high effort (default); xhigh if capability-sensitive`.
+
+The gate line is the ledger's last line — one token per delivery-gate item, `✓` / `✗` / `n/a` (n/a only where the ledger shows why the item doesn't apply):
+
+```
+gate: defaults ✓ · hazards ✓ · traced ✓ · facts ✓ · growth ✓ · length 312w ✓ · split n/a · sim ✓
+```
+
+Never deliver with an `✗` — fix and re-walk.
+
+## After the run — the feedback loop
+
+A `stop_reason: "refusal"` on the target run means a hazard survived the rewrite — check `stop_details` for the category, re-run the REWRITE bucket against the classifier table, redeliver. Quality problems trace the same way: output over-built → a CUT or COLLAPSE was missed; the model guessed or asked → the simulation probe that should have caught it. Fix the bucket, not just the prompt.

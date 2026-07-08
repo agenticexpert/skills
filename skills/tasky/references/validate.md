@@ -80,6 +80,8 @@ Evolution drift is not a bug. It's a knowledge maintenance signal. The task was 
 
 ## Reporting
 
+Open with coverage: `Audited N of M done tasks` — read counts, not estimates. If any in scope were skipped, name them. A sampled audit reported as full coverage is itself drift.
+
 Present issues in two passes:
 
 **Mechanical (validate.py output):** List verbatim — these are definitive.

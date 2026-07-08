@@ -20,7 +20,7 @@ the live-trigger state file `.agents/mem/triggers.md` — see Survival.
 - Loads macro from `references/triggers/{name}.md`
 - Registers trigger in active list
 - Rewrites the live-trigger block at `.agents/mem/triggers.md` — see Survival
-- Confirms activation to user
+- Confirms activation by quoting the rewritten block — the quote is proof the state file was written; survival depends on it
 
 Default log root: `.agents/mem/logs/` — each macro names its file there.
 

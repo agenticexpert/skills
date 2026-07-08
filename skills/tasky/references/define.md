@@ -116,6 +116,8 @@ Fill in only what's needed. Leave sections blank if they add no value.
 
 ## Exit
 
+Gate the flip: re-read the task file first. `pending` requires the target detail level actually on disk — Workable means Description plus Criteria-or-Task populated in the file, not discussed in chat. Flipping a stub to `pending` puts an unexecutable task in the ready queue.
+
 When the task or tasks are defined at the right detail level for what's coming next, set status to `pending`:
 
 ```

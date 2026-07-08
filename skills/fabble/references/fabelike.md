@@ -38,6 +38,7 @@ Most of these are things fablize would delete; here they earn their place:
 - **Externalized self-verification.** Fable self-checks internally; Sonnet/Opus need it in the prompt: "Before answering, walk the stop conditions one by one and confirm each is met; any unmet → keep working." For high-stakes deliverables, build the loop into the prompt itself: draft → review against the named criteria → revise, as explicit phases.
 - **Plan-then-execute for ambiguity.** Fable scopes and proceeds; give Sonnet/Opus the hinge: "State your plan in one short paragraph, then execute it. Don't ask clarifying questions you can resolve with a stated assumption."
 - **Quality modifiers.** "Go beyond the basics; include as many relevant features and interactions as possible" — noise on Fable, real fuel on Sonnet/Opus for open-ended builds. Keep or add for generative/design/feature work.
+- **One worked example for shape-sensitive output.** Format nontrivial and described only in prose → add a single small input→output example, marked as illustration. Sonnet/Opus anchor on examples harder than on rules — one example beats three format rules. Exactly one; stacks invite copying content instead of shape. (`opus-behavior.md` §10.)
 - **Tool nudges with why.** Keep explicit when-and-how tool guidance if the source's workflow depends on a tool the model undertriggers; state the reason, not just the command.
 - **Step scaffolding for real ordering.** A numbered sequence for genuinely ordered work (migrate → verify → cut over) helps Sonnet/Opus and stays. Steps the model derives trivially still get cut.
 - **Grounded-progress + no-early-stop as defaults.** On Fable these are long-run-only; on Sonnet/Opus include both whenever no human watches mid-run.
@@ -75,7 +76,7 @@ Never silently promise fable results on a fable-shaped task.
 
 ## Delivery gate — all must pass
 
-Walk the items one by one against the actual enhanced text and confirm each — an item you did not walk is a failed item.
+Walk the items one by one against the actual enhanced text and confirm each — an item you did not walk is a failed item. The walk's artifact is the gate line closing the ledger (format below); a verdict without its gate line is an unwalked gate.
 
 - Purpose, boundaries, evidence demand, and countable done present (or ledger states why one is genuinely inapplicable).
 - Every broadly-applicable rule states its scope explicitly — read the prompt as a literal-minded executor; any rule requiring generalization to work fails.
@@ -96,3 +97,11 @@ Walk the items one by one against the actual enhanced text and confirm each — 
 − cut: CRITICAL/MUST wall — overtriggers on current models
 ! ceiling: [only if a fable-shaped assumption was found]
 ```
+
+The gate line is the ledger's last line — one token per delivery-gate item, `✓` / `✗` / `n/a` (n/a only where the ledger shows why the item doesn't apply):
+
+```
+gate: contract ✓ · scope ✓ · checklist ✓ · hygiene ✓ · autonomy n/a · facts ✓ · length 418w ✓ · sim ✓
+```
+
+Never deliver with an `✗` — fix and re-walk.

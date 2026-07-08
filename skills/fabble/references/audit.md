@@ -14,6 +14,8 @@ You are a gate, not a commentator. Fix everything you can fix yourself; escalate
    `N. [the gap] → YOLO default: [what gets assumed] → cost if wrong: [one clause]`
    End with: `Reply with answers, or "YOLO" to accept all defaults.`
 
+Every verdict — SHIP included — closes with the gate line: `gate: 1✓ 2✓ 3~ 4✓ 5✓ 6✓ 7✓` (`✓` PASS, `~` RISK patched, `✗` BLOCK). One line, not the scorecard; findings stay internal. A verdict without it is void — the line is the proof all seven checks ran. Every `✗` must match a DECIDE fork; a SHIP carrying an `✗` is a failed review.
+
 Nothing else. No summaries of the plan, no restating the goal, no scoring tables unless the user asks for the scorecard, no advice essays. If the user has pre-declared YOLO mode ("just YOLO it", "ship whatever"), never output DECIDE — bake every default in, label each as `ASSUMPTION:` inside the prompt, and SHIP WITH ASSUMPTIONS.
 
 A fourth verdict exists for one case only: **`SHIP AS SEQUENCE — N runs`** — when check #2 finds the goal genuinely exceeds one run and cutting scope would abandon part of the goal the user clearly wants. Then deliver N numbered, fully self-contained prompts with explicit input contracts between them (each opens with `[Attach: <named output of prompt N-1>]`; Fable 5 has no memory between runs). Splitting a goal that fits one run is a defect equal to shipping one that doesn't.
@@ -21,7 +23,7 @@ A fourth verdict exists for one case only: **`SHIP AS SEQUENCE — N runs`** —
 ## Hard rules — violating any of these is a failed review
 
 - **All seven probes run, every time.** No verdict — including SHIP — until every probe in the reference has been executed against the actual text, and the check-#6 run simulation has been completed start to finish with guess-points logged. A SHIP produced by eyeballing is the laziest possible failure: it costs the user a full Fable 5 run to discover what you skipped. Findings stay internal unless the scorecard is requested; the work does not.
-- **The scorecard exists every run.** Build it internally as you go — Check | Score | one-line finding, all seven rows — before any verdict. It is the work product that proves each check ran: a check with no finding line was not run, and a verdict without all seven rows is void. Output it only when asked (see below).
+- **The scorecard exists every run.** Build it internally as you go — Check | Score | one-line finding, all seven rows — before any verdict. It is the work product that proves each check ran: a check with no finding line was not run, and a verdict without all seven rows is void. The gate line in the output is its public trace — the seven tokens must match the scorecard's seven scores. Output it only when asked (see below).
 - **Apply, never describe.** Every fix appears in the shipped code block. "Consider tightening the stop conditions," "you may want to add context about X," and any other advice-shaped output is forbidden — either you made the change or you forked it in DECIDE. There is no third category.
 - **Zero placeholders survive review.** `[insert X]`, `[your data here]`, `TBD` in the input are defects; in your output they are failures. Resolve each into a baked default (labeled `ASSUMPTION:`) or a DECIDE fork.
 - **Input routing:** if handed a raw goal rather than a drafted prompt, the review has nothing to gate yet — draft the prompt first (via the `promptify.md` playbook in this directory), then run this gate on your own draft at full strictness. Do not review vibes.
@@ -65,3 +67,7 @@ Every patch must survive this test: *does it change what Fable 5 produces, or re
 ## If the user asks for the scorecard
 
 It already exists — the hard rules built it during the run. Only then, prepend the verdict with it: Check | Score | One-line finding. Still no prose around it.
+
+## If the shipped run refuses
+
+A `stop_reason: "refusal"` after a SHIP means the check-7 classifier scan missed — `stop_details` names the category. Reframe per the classifier table in `gate.md`, re-run the full gate (a reframe can shift other checks), redeliver.

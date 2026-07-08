@@ -285,3 +285,5 @@ When creating a full structure from a plan session, build top-down and confirm t
 ```
 
 Never create a child before its parent exists.
+
+If any script errors mid-batch, stop — do not run children of a failed parent. Report what was created and what wasn't, from the scripts' actual output. Never report the batch complete on partial success.

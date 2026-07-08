@@ -174,5 +174,11 @@ The concrete tags and their order come from whichever format applied — never f
 ## Delivery
 
 1. An existing file at the output path → copy it into `.agents/mem/summary/archive/` with a timestamp suffix first; no version is ever overwritten. Then write the summary.
-2. Confirm: output path, sections omitted, topics pruned, directives skipped or fallen back, unresolved decision count.
-3. Unresolved decisions exist → offer `/mem decide`.
+2. Walk the written file before confirming — against the file, not your intent:
+   - Every composed section present or named in the omitted list.
+   - APPEND sections carry the previous summary's entries unchanged, new entries after — rewritten history is a defect, fix before confirming.
+   - [SESSION n] and T{n} continue from the previous summary; a restart at 1 is a defect.
+   - Artifacts verbatim — spot-check ones you know exist (an exact error, an exact user question).
+   - A `from {source}` run processed the whole source — confirm the final chunk was reached.
+3. Confirm: output path, sections omitted, topics pruned, directives skipped or fallen back, unresolved decision count.
+4. Unresolved decisions exist → offer `/mem decide`.

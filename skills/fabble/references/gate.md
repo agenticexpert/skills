@@ -39,7 +39,7 @@ Constraints on the path, not steps of the path. Fable 5 derives good paths from 
 **Probes:**
 - Missing-constraint scan: is there a plausible path that satisfies the goal as written but the user would reject? (Wrong stack, wrong tone, forbidden approach, breaking an unstated compatibility, touching a system that's off-limits.) Each such path reveals a missing Boundary or Context line → patch.
 - Order dependencies: are there real sequencing constraints (X must exist before Y, don't deploy before tests)? Stated, or safely obvious?
-- Step-by-step smell (inverse defect): numbered how-to instructions for things Fable 5 derives — micromanaged steps, prescribed sub-plans. Delete; keep only steps that are genuine constraints. Cutting is a patch.
+- Step-by-step smell (inverse defect): numbered how-to instructions for things Fable 5 derives — micromanaged steps, prescribed sub-plans. The test: could the executor recover the order from the goal and constraints alone? Recoverable → delete. Not recoverable (deploy order, protocol steps, a required call sequence) → genuine constraint, keep. Cutting is a patch.
 - Dead ends: does the prompt say what to do when the primary approach fails (fallback authorized? stop and report?), where failure is plausible?
 
 ## Check 5 — Deliverable definition
@@ -79,6 +79,7 @@ command or source that proves them, length band 150–600.
 - Emphasis inflation: `CRITICAL:`, `YOU MUST`, `ALWAYS`, repeated rules. State once, plainly — repetition causes overtriggering, not compliance.
 - Step-by-step scaffolding for derivable work (overlaps check #4 — cut there counts here).
 - Forced-progress scaffolding ("summarize after every N tool calls") — Fable 5 updates well by default.
+- Example stacks — more than one worked example for the same output shape; keep the single best, cut the rest.
 
 **Classifier scan (any hit → patch the framing or DECIDE; a tripped classifier refuses and wastes the whole run):**
 
@@ -93,6 +94,7 @@ command or source that proves them, length band 150–600.
 - Verification rules checkable against something concrete (a source, a tool result, a stated criterion) — "verify your work is correct" is not a rule.
 - Autonomous-run blocks (grounded progress, no-early-stop, final-summary readability) present for long agentic runs, absent for short interactive tasks. Wrong direction either way → patch.
 - Work-ledger block present when the run is multi-step (n discrete items) and long enough to hit compaction — mandatory on Opus/Sonnet targets for any autonomous multi-step run (`opus-behavior.md` §9); absent on short single-deliverable tasks. Wrong direction either way → patch.
+- One worked example present when the output shape is nontrivial and described only in prose — mandatory on Opus/Sonnet targets (`opus-behavior.md` §10), permitted on Fable. Marked as illustration so content isn't copied.
 - Purpose states who it's for and what the output enables (Fable 5 performs better knowing intent).
 - Length 150–450 words per prompt. Over → cut context that doesn't change output. A vague one-sentence section → concretize or delete.
 

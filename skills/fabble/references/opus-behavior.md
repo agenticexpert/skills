@@ -83,6 +83,14 @@ autonomous run with n discrete items. It is what the completion checklist (§3)
 walks against: the checklist proves each item done; the ledger guarantees the
 list itself survived to be walked.
 
+### 10. One worked example beats format prose
+
+Sonnet/Opus anchor on examples more strongly than on rules; Fable infers shape
+from the spec. When the deliverable's format is nontrivial, include one small
+input→output example, explicitly marked as illustration so content isn't
+copied. Exactly one — example stacks bloat the prompt and invite content
+mimicry over shape.
+
 ## Delivery-gate adjustments (also for audit check #7)
 
 When the target is Opus/Sonnet:

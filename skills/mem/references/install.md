@@ -13,7 +13,8 @@ Steps:
 
 1. Read `.claude/settings.local.json` — search upward from the current directory; create the file if missing.
 2. Merge the hooks below in — preserve all existing settings and hooks. Adjust command paths to where this skill actually lives (e.g. `~/.claude/skills/mem/references/lifecycle.py` for a user-level install). `$CLAUDE_PROJECT_DIR` resolves to the repo root no matter which subdirectory the session launched from — keep it in project-level installs; the script reads the same variable to locate `.agents/mem`. An old `rotate.py` entry is superseded — replace it.
-3. Confirm: "mem lifecycle installed — checkpoint loads on /clear and startup, triggers survive compaction, transcripts auto-archive."
+3. Re-read the merged file: every pre-existing hook and setting still present, the four mem entries added. A merge that dropped anything is a failed install — fix before confirming.
+4. Confirm: "mem lifecycle installed — checkpoint loads on /clear and startup, triggers survive compaction, transcripts auto-archive."
 
 ```json
 {
