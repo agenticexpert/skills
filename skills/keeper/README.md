@@ -106,7 +106,7 @@ The report arrives inline, and every run renders the signature architect's-bluep
 npx skills add agenticexpert/skills/keeper
 ```
 
-Part of [Agentic Expert](../../../README.md).
+Part of [Agentic Expert](../../../README.md). Built by **Shawn Bullock** — [agenticexpert.ai](https://agenticexpert.ai).
 
 ## License
 

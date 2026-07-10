@@ -81,7 +81,7 @@ Default: reviewed
 npx skills add agenticexpert/skills/minion
 ```
 
-Part of [Agentic Expert](../../../README.md).
+Part of [Agentic Expert](../../../README.md). Built by **Shawn Bullock** — [agenticexpert.ai](https://agenticexpert.ai).
 
 ## License
 

@@ -187,4 +187,4 @@ Tasky is licensed under MIT. See `LICENSE`.
 
 ## Part of Agentic Expert
 
-Tasky is one skill in the Agentic Expert suite, focused on exploratory delivery and execution orchestration.
+Tasky is one skill in the Agentic Expert suite, focused on exploratory delivery and execution orchestration. Built by **Shawn Bullock** — [agenticexpert.ai](https://agenticexpert.ai).

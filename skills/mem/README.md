@@ -180,7 +180,7 @@ npx skills add agenticexpert/skills/mem
 
 Then run `/mem install` once to wire up the compact and session-end hooks.
 
-Part of [Agentic Expert](../../../README.md).
+Part of [Agentic Expert](../../../README.md). Built by **Shawn Bullock** — [agenticexpert.ai](https://agenticexpert.ai).
 
 ## License
 

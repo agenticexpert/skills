@@ -79,7 +79,7 @@ The skill install lays down the playbooks, but slash commands live in `.claude/c
 
 Fabble copies its bundled `commands/until.md` into the matching commands directory; Claude Code registers any file there as a slash command. `/until [opus|sonnet] <ask>` works from then on. Delete that file to remove it. This step is optional — everything else in fabble works without it; you just trigger the goal-elevation path in words instead.
 
-Part of [Agentic Expert](../../../README.md).
+Part of [Agentic Expert](../../../README.md). Built by **Shawn Bullock** — [agenticexpert.ai](https://agenticexpert.ai).
 
 ## License
 

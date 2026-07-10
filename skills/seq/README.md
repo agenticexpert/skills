@@ -75,7 +75,7 @@ Now every bare `/seq <task>` runs `deep` instead of `standard`. Your sequences l
 npx skills add agenticexpert/skills/seq
 ```
 
-Part of [Agentic Expert](../../../README.md).
+Part of [Agentic Expert](../../../README.md). Built by **Shawn Bullock** — [agenticexpert.ai](https://agenticexpert.ai).
 
 ## License
 
