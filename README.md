@@ -1,92 +1,88 @@
 <div align="center">
 
-# Agentic Expert
-
-**A software-engineering suite for Claude Code — judgment, not ceremony.**
-
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Skills](https://img.shields.io/badge/skills-8-brightgreen.svg)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)]()
+![Skills](https://img.shields.io/badge/skills-5-brightgreen.svg)
 
 </div>
 
-> A curated suite of Claude Code skills for the whole engineering loop: **plan and execute the work, stress-test decisions before they bite, and engineer the prompts and memory that drive it all.**
+Agents need a boost sometimes — on a plan that has to hold for a week, a decision that deserves a second opinion, a prompt worth tuning before an expensive run, knowledge that has to survive the context window.
 
-Tasky, Seq, and Minion plan and move the work. Keeper, Lookback, and Ripper each poke holes in a decision before you commit. Fabble and Mem sit underneath — engineering the prompts you hand a model and the memory that survives the context window.
-
----
-
-## 🧰 The Skills
-
-### Plan & Execute
-
-- **[Tasky](.claude/skills/tasky/README.md)** — turn a fuzzy deliverable into an execution plan: `project → roadmap → track → milestone → task`. Find what's next, what's blocked, execute, validate — all through conversation. Lightweight on purpose.
-- **[Seq](.claude/skills/seq/README.md)** — run one tracked task inline through a named step-sequence (`audit → work → audit → report`). You see it happen and can course-correct mid-run.
-- **[Minion](.claude/skills/minion/README.md)** — the delegated twin of Seq: hand a task (or a whole milestone) to a headless sub-agent so the heavy work stays out of your main context. Only a compact summary comes back.
-
-### Stress-Test & Judge — *decision disciplines*
-
-- **[Keeper](.claude/skills/keeper/README.md)** — keep-or-drop judgment for architecture and implementation. One verdict per element: `keep · fix · pivot · drop`. Every call is conditional and evidence-grounded.
-- **[Lookback](.claude/skills/lookback/README.md)** — a solo premortem. Imagine the launch *already* failed, then work back to the top 5 reasons why. Each scenario is research-defended, classed `real · imagined · disregarded`, and carries a rollback spec.
-- **[Ripper](.claude/skills/ripper/README.md)** — a retention premortem. Finds where allies, champions, and power users hesitate, drift, or stop advocating, then turns every cut into a retention action. 6 personas, each finding graded 1–10.
-
-### Prompt & Context — *the layer underneath*
-
-- **[Fabble](.claude/skills/fabble/README.md)** — get a prompt right *before* you spend an expensive run on it. Fable 5 is the most capable Claude model and the priciest to run, so Fabble tunes and checks the prompt first: **write** one from scratch out of a goal (`promptify`), **convert** an existing prompt to run on Fable 5 (`fablize`), **upgrade** a Sonnet/Opus prompt toward Fable-5 quality *without* switching models — as far as that model's ceiling allows (`fabelike`), or **audit** a finished prompt for a ready / not-ready verdict before you burn tokens (`audit`). `/until` sharpens a vague ask into a single-run goal.
-- **[Mem](.claude/skills/mem/README.md)** — durable conversation memory. Structured, chronological summaries that survive `/clear` and compaction, hand off between agents and sessions, and split into idea threads or rejoin.
+Here's how.
 
 ---
 
-## 🎯 How It Feels to Use
+## What it does
 
-These are **semantic skills** — there's no command to memorize. Claude reads your intent against each skill's description and loads the right one automatically. State what you're doing and the matching skill picks it up:
+| When this is your problem | Reach for |
+|---|---|
+| A deliverable is a fuzzy blob — you don't know the pieces, the order, or what's blocked | **[Tasky](.claude/skills/tasky/README.md)** — turns it into a plan you can execute and track, all through conversation |
+| You built something and don't know whether it should survive | **[Keeper](.claude/skills/keeper/README.md)** — one verdict per piece: keep, fix, pivot, or drop |
+| You ship in a month and want to know how it fails — while you can still change course | **[Lookback](.claude/skills/lookback/README.md)** — assumes the launch already failed, then works back to why |
+| Your best users quietly stop recommending you and you never find out why | **[Ripper](.claude/skills/ripper/README.md)** — finds where they hesitate or drift, and turns each one into a fix |
+| The session ends and everything it knew dies with it | **[Mem](.claude/skills/mem/README.md)** — durable summaries that survive `/clear`, compaction, and handoffs |
 
-> Need to force it? Every skill is also loadable by name — `/tasky`, `/seq`, `/minion`, `/keeper`, `/lookback`, `/ripper`, `/fabble`, `/mem`.
+## What it looks like
 
-**Plan & Execute**
-- "Let's plan out the roadmap for `<topic>`." · "What's next?" · "What's blocked?" *(Tasky)*
-- "Do `<task>` inline." · "Run `<task>` here so I can watch it." *(Seq)*
-- "Minion task `<name>`." · "Delegate this without burning main context." *(Minion)*
+Keeper, asked whether an auth design is worth keeping:
 
-**Stress-Test & Judge**
-- "Is this auth design worth keeping, or should we pivot?" *(Keeper)*
-- "We're a month out from ship. Run a premortem while we can still change course." *(Lookback)*
-- "What would make our power users quietly stop recommending us — while we can still fix it?" *(Ripper)*
+```
+session store              KEEP    3 call sites, no coupling to the token path.
+refresh-token rotation     FIX     silently no-ops on clock skew — auth.ts:214.
+device fingerprinting      DROP    40 lines, one caller, breaks Safari private mode.
 
-**Prompt & Context**
-- "Upgrade this prompt for Fable 5." · "Is this prompt ready before I run it?" *(Fabble)*
-- "Checkpoint this session." · "Continue from the last checkpoint." *(Mem)*
+Pivot only if SSO lands next quarter. Otherwise this holds.
+```
 
----
+Every call conditional, every call tied to something in your code. That's the house style across all five.
 
-## 🚀 Installation
+## How to use it
+
+**Nothing to memorize.** Say what you're doing; Claude matches it against each skill and loads the right one.
+
+- "Let's plan out the roadmap for `<thing>`." · "What's next?" · "What's blocked?"
+- "Is this auth design worth keeping, or should we pivot?"
+- "We ship in a month. Run a premortem while we can still change course."
+- "What would make our power users quietly stop recommending us?"
+- "Checkpoint this session." · "Continue from the last checkpoint."
+
+Need to force one? Every skill loads by name: `/tasky` `/keeper` `/lookback` `/ripper` `/mem`.
+
+## Install
 
 ```bash
-# All skills
+# All five
 npx skills add agenticexpert/skills
 
-# A single skill
+# Or just one
 npx skills add agenticexpert/skills/tasky
-npx skills add agenticexpert/skills/seq
-npx skills add agenticexpert/skills/minion
 npx skills add agenticexpert/skills/keeper
 npx skills add agenticexpert/skills/lookback
 npx skills add agenticexpert/skills/ripper
-npx skills add agenticexpert/skills/fabble
 npx skills add agenticexpert/skills/mem
 ```
 
-## 🔄 Updates
+Updating:
 
 ```bash
-# By repo source
-npx skills update agenticexpert/skills
-
-# By skill name
-npx skills update tasky
+npx skills update agenticexpert/skills   # everything from this source
+npx skills update tasky                  # one skill by name
 ```
 
+**Start here:** install all five, then say *"Let's plan out the roadmap for `<what you're building>`."* Tasky picks it up. The rest find you when you need them.
+
 ---
+
+## Going deeper
+
+The five group into three jobs. Each skill's own README has the full method.
+
+- **Plan & execute** — [Tasky](.claude/skills/tasky/README.md) breaks the work down into a plan you can run and track.
+- **Stress-test a decision** — [Keeper](.claude/skills/keeper/README.md) judges what exists · [Lookback](.claude/skills/lookback/README.md) hunts the failure before it happens · [Ripper](.claude/skills/ripper/README.md) hunts the quiet churn.
+- **Context** — [Mem](.claude/skills/mem/README.md) keeps what the model would otherwise forget.
+
+They compose: Tasky plans it, Lookback tries to break it, Keeper decides what survives, Mem remembers what happened.
+
+Built by **Shawn Bullock** — [agenticexpert.ai](https://agenticexpert.ai).
 
 ## License
 

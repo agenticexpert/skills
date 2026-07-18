@@ -78,6 +78,7 @@ EXECUTE: references/brainstorm.md
 
 ## Always
 
+- When your hand-back is a task summary or an action the user must take — there is something to do, or the steps did not work (a blocker/failure they must act on) — follow the form in `references/report.md`; otherwise a plain summary. Sections are optional; NOTE alone stands when there are no steps. Plain conversation, code, and non-task replies stay untouched.
 - Never echo or repeat script output in text. The terminal already shows it.
 - Derive state from scripts. Never guess project structure.
 - Resolve natural-language names to directory slugs before acting. Surface the resolution: "I'm treating 'auth module' as the `auth` milestone."
