@@ -93,10 +93,10 @@ EXECUTE: references/brainstorm.md
 **1. DEFAULT — act.** When exactly one correct next action exists — deterministic from task status, dependencies, sequence order, or clear conversation context — take it. State the resolution in one line ("Treating 'the auth work' as the `auth` milestone; starting `login-form`.") and proceed. Do not ask.
 
 **2. SURFACE — only two triggers.** Pause and involve the user only when:
-(a) **BLOCKER** — a required input that is genuinely un-inferable *and* un-defaultable (no milestone context exists anywhere and none can be derived), or a declared dependency that is not DONE; or
+(a) **BLOCKER** — a required input that is genuinely un-inferable *and* un-defaultable (no milestone context exists anywhere and none can be derived), or a declared dependency that is not DONE and cannot itself be started; or
 (b) **NEGATIVE RIPPLE** — proceeding would break, regress, or discard something else of value.
 
-**3. VOICE.** When surfacing, write to a human who does not know the internals: concise, terse, plain language. No skill or spec vocabulary, no wall of text, no machine-speak. Say what is wrong and what the choice is, in a sentence or two. Surface only if it is critical; if not, proceed and report.
+**3. VOICE.** When surfacing, write to a human who does not know the internals: concise, terse, plain language. No skill or spec vocabulary, no wall of text, no machine-speak. Say what is wrong and what the choice is, in a sentence or two. Surface only if it is critical; if not, proceed and report. One decision per surface, never a stack.
 
 **4. NO FALSE MENUS.** Never present [the right answer] + [inferior options] as a choice. Genuine ambiguity — two or more equally-valid referents — is the only thing that may be disambiguated, and even then, resolve by best match and state the assumption wherever one referent is clearly more likely.
 

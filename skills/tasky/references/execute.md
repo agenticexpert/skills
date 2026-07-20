@@ -24,9 +24,7 @@ If the milestone context isn't known in any case, resolve it per navigate.md →
 
 ## Before Starting
 
-Verify all declared dependencies are DONE. If any are not:
-- Name the blocker.
-- Stop. Do not proceed.
+Verify all declared dependencies are DONE. If any are not, a dependency that can itself be started is the next action — start it. Only one that cannot is a blocker: name it and stop (SKILL.md → **Deciding**, BLOCKER).
 
 ---
 
@@ -96,6 +94,8 @@ Checked criteria preserve what was done. When work resumes, pick up from the fir
 All criteria checked → set status to READY, not DONE. READY means the work is done but has not been validated yet. The user must confirm before DONE is set.
 
 Before setting READY, re-read the task file from disk — every criterion `[x]` in the file, not in your memory of the session. A criterion still `[ ]` means the work isn't done, whatever the conversation says.
+
+Before setting READY, report a numbered list headed `TO TEST:` — one line per entry, each naming a single action the user takes and the result they should see, derived from the task's criteria.
 
 ```
 python manage_tasks.py set-status <project> <roadmap> <track> <milestone> <slug> ready

@@ -71,7 +71,7 @@ python .claude/skills/tasky/scripts/view_all.py
 
 **Triggers:** "what are the next tasks", "show me the next tasks", "next tasks", "next tasks report"
 
-**Not this:** "show the tasks" / "view tasks" → use `view_tasks.py` (diagram). That stays unchanged.
+**Not this:** "show the tasks" / "view tasks" → use `view_tasks.py` (diagram). That stays unchanged. Bare "what's next?" / "where are we?" → the LINEAR PATH format under **Interpreting Results**, not this report.
 
 Steps:
 
@@ -120,3 +120,20 @@ If there's nothing DOING and nothing unblocked, surface that directly:
 > "Everything is blocked. The next unblocked item is `{slug}` in `{track}` — but it's waiting on `{dep}`."
 
 If the project is empty or has no tasks yet, say so plainly and name the single next action — decomposing the work into tracks and milestones, which routes to `plan.md`, or `brainstorm.md` when the idea is still fuzzy. State it as the next step, not as an offer among options.
+
+### "Where are we?" / "what's next?" / "plan to finish X" → answer as a LINEAR PATH
+
+These questions get a path, never a menu. Format:
+
+```
+WHERE ARE: <a few words — current state, and the one thing that blocks progress if blocked>
+TO <goal — finish the current task / reach the next unblocked task>:
+- <step, a few words> [task id]
+- <step> [task id]
+- ...
+First: <the single next action>
+```
+
+- A blocker folds INTO the order as its own step (put it first), never as a branch or an A/B choice: "do X, blocked on Y → so Y first."
+- A status answer never carries options, deferrals-dressed-as-choices, or a clarifier block — the Auto-Proceed Doctrine (`SKILL.md`) applied to this format.
+- A few words per step. No elaboration, no restating the board.
