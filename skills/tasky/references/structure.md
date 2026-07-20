@@ -1,6 +1,6 @@
 # Structure Playbook
 
-The user wants to create, rename, resequence, or restructure the hierarchy. Execute precisely. Confirm before writing. Show what you're about to create and get a yes before running scripts.
+The user wants to create, rename, resequence, or restructure the hierarchy. Execute precisely. State what you're writing, then write it — confirm first only when the change is destructive or lossy (SKILL.md → **Deciding**).
 
 ---
 
@@ -63,31 +63,41 @@ The `#` (seq) shown in views is derived at render time from position in these ar
 
 ## Alias Resolution
 
-Users will use natural names that may not match directory slugs. Before calling any script, resolve each name — same procedure as navigate.md → **Resolving References**:
-
-1. **Already named.** Use the slug already mentioned in this conversation.
-2. **Single instance.** Only one option at that level → use it.
-3. **Discovery.** Run `view_all.py` and fuzzy-match the user's term against existing slugs.
-4. **Surface.** Never guess silently: "I'm treating 'auth module' as the `auth` milestone."
-5. **Ask.** Multiple plausible candidates → "Did you mean X or Y?"
+Users will use natural names that may not match directory slugs. Resolve every natural-language name before calling any script, per navigate.md → **Resolving References**.
 
 ---
 
 ## Creating Structure
 
-### Confirm Before Writing
+### State, Then Write
 
-Show the user what you're about to create before running any script:
+State what you're creating, then run the script. Do not wait for confirmation.
 
 ```
-I'll create:
+Creating:
   {root}/my-project/
   {root}/my-project/project.json
   {root}/my-project/v1/
   {root}/my-project/v1/core/
 ```
 
-Get confirmation, then run.
+**Confirm first only when the write is destructive or lossy.** That is a NEGATIVE RIPPLE (SKILL.md → **Deciding**, 2b): name what would break, in one line, and wait. Which writes those are, by what each script does to dependency references:
+
+| Write | Reference handling | Verdict |
+|---|---|---|
+| Create (any level), batch create | Cannot clobber — the script errors if the slug already exists | Proceed |
+| Cross-parent move of a **track**, **milestone**, or **task** | Script checks inbound/outbound deps and blocks an invalid move | Proceed |
+| Cross-parent move of a **roadmap** | No dep check at all; `focus.hide` and the Gantt slot maps are not migrated | **Confirm**, then re-apply hide and slot entries at the destination |
+| Resequence (same parent) | **Not validated** — the script warns and writes anyway | Proceed, then verify no dependency now sits after its dependent |
+| Rename a **track**, **milestone**, or **roadmap** | Script rewrites the dependency keys and references in `project.json`. It does *not* update `milestone_slots` or `track_slots`, and track/milestone rename does not update `focus.hide` — a renamed hidden item silently unhides and its Gantt slot reverts to default | Proceed, and re-apply the slot or hide entry if one existed |
+| Rename a **project** | Renames the directory only — `project.json` is never opened, so `oob_roadmaps` (keyed by project name) is orphaned and every out-of-band roadmap silently reverts to in-band | **Confirm** — name the OOB markings that will be lost, then re-apply them |
+| Rename a **task** | Script updates the `order` arrays only. Sibling tasks' `Dependencies:` lines still name the old slug | **Confirm** — name the tasks that would break |
+| Delete a **task** | Inbound deps unchecked; sibling `Dependencies:` lines left dangling | **Confirm** — name what depends on it |
+| Delete a **track**, **milestone**, or **roadmap** | Inbound deps unchecked, and references to the deleted item are silently stripped from `project.json` — the dependency is discarded, not dangling. Track and milestone delete also leave a stale `focus.hide` entry, so recreating the slug later comes back hidden | **Confirm** — name what depended on it |
+| `remove-dep` | Discards a declared dependency | **Confirm**, including when clearing a dep to unblock a move |
+| `hide` / `unhide` | Changes what every view shows; no data loss | Proceed |
+
+After a confirmed task rename or delete, fix the dangling `Dependencies:` lines in the affected task files — the script does not.
 
 ### Project
 
@@ -186,7 +196,11 @@ python .claude/skills/tasky/scripts/manage_milestones.py move <project> <roadmap
 python .claude/skills/tasky/scripts/manage_tasks.py move <project> <roadmap> <track> <milestone> <slug> --insert <n>
 ```
 
-Reorders within the parent's array in project.json. No filesystem changes. Scripts validate that no resequence places a dependency after the dependent.
+Reorders within the parent's array in project.json. No filesystem changes.
+
+Tracks resequence the same way: `manage_tracks.py move <project> <roadmap> <slug> --insert <n>`.
+
+**The script does not validate this — it only prints a warning and writes anyway.** After any resequence, check the moved item's dependencies yourself: if a dependency now sits after its dependent, say so and fix the order. Cross-parent moves (below) *are* validated for tracks, milestones, and tasks; same-parent resequencing never is.
 
 ---
 
@@ -270,11 +284,10 @@ python .claude/skills/tasky/scripts/manage_milestones.py unhide <project> <roadm
 
 ## Batch Creation
 
-When creating a full structure from a plan session, build top-down and confirm the whole batch at once before running:
+When creating a full structure from a plan session, build top-down:
 
-1. Show the complete proposed structure.
-2. Get one confirmation.
-3. Run scripts strictly in this order — each level must exist before the next is created:
+1. State the complete structure you're creating.
+2. Run scripts strictly in this order — each level must exist before the next is created:
 
 ```
 1. project       manage_projects.py create-project

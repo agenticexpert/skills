@@ -8,15 +8,17 @@ The user wants to work a task. Identify which task, load it, do the work, update
 
 **User names a specific task** — resolve it (alias if needed) and load it.
 
-**User says "continue" or "resume"** — if there is a DOING task in the known milestone context, that is the task. If the milestone isn't known, ask.
+**User says "continue" or "resume"** — if there is a DOING task in the known milestone context, that is the task. If the milestone isn't known, infer it from the conversation thread, or from the sole DOING task. Only when neither exists is it a blocker (SKILL.md → **Deciding**, BLOCKER).
 
-**User says "next"** — two cases:
-- A DOING task exists in the milestone → disambiguate: "Do you mean resume `{doing-task}` or start `{next-task}`?"
-- No DOING task exists → first task in sequence with status `pending` or `paused`. If the next task is `todo` (undefined stub), offer to define it first before executing.
+**User says "start the next one" / "skip ahead" / "skip it"** — the explicit skip. Match this before the bare "next" case below. Pause the DOING task per **Pausing**, then take the first task in sequence *after that one* with status `pending` or `paused`. Never re-select the task just paused.
 
-If the milestone context isn't known in either case, ask: "Which milestone?"
+**User says "next"** (bare) — two cases:
+- A DOING task exists in the milestone → resume it, and say so in one line: *"Resuming `{doing-task}`. Say 'start the next one' to switch."* No menu.
+- No DOING task exists → first task in sequence with status `pending` or `paused`. If the next task is `todo` (undefined stub), define it inline from milestone context — the content bar is define.md → **Detail Levels** and **Writing the Task File**, the status flip to `pending` is define.md → **Exit** — then execute. State what you wrote.
 
-**Anything else ambiguous** — ask. Don't infer.
+If the milestone context isn't known in any case, resolve it per navigate.md → **Resolving References**. Only when discovery returns nothing is it a blocker.
+
+**Anything else ambiguous** — resolve by best match, state the assumption in one line, and proceed. Surface only a blocker or a negative ripple (SKILL.md → **Deciding**).
 
 ---
 
@@ -42,7 +44,7 @@ Read the task file. Fields:
 
 **If `## Task` is empty:** Criteria is both the instruction and the acceptance gate. Work each item, check it off when done.
 
-If both Task and Criteria are empty (placeholder task), ask the user if they want to flesh it out first, or give you verbal instructions to work from.
+If both Task and Criteria are empty (placeholder task), fill it in and proceed — don't ask permission to. Where milestone context yields enough to meet the bar in define.md → **Detail Levels**, write it, flip the status to `pending` per define.md → **Exit**, and execute. A name-only stub in a milestone with no description does not clear that bar and is genuinely un-inferable — that is a blocker (SKILL.md → **Deciding**, BLOCKER).
 
 ---
 

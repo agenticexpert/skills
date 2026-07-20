@@ -5,9 +5,9 @@ SCOPE: General purpose — suitable for most development tasks
 
 ## INSTRUCTIONS
 
-Stay within scope. If something is unclear, ask before assuming. Small gaps found during
-execution are fine to address inline — anything requiring significant effort or a judgment
-call should be surfaced to the user first.
+Stay within scope. Small gaps found during execution are fine to address inline; work
+materially larger than the task describes is out of scope — stop and say so.
+Decisions follow `SKILL.md` → **Deciding**.
 
 ## FLOW
 

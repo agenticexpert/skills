@@ -39,7 +39,7 @@ Three entry points:
 
 **Milestone with no tasks** — surface what the tasks are, stub them in sequence.
 
-**Stub tasks that need fleshing out** — identify which ones, ask what's needed, fill them in.
+**Stub tasks that need fleshing out** — identify which ones and fill them in from milestone context: the sequence, the neighbouring tasks, the milestone description. Ask only for fields genuinely un-inferable (SKILL.md → **Deciding**).
 
 **A specific task to define** — focus on that one task, ask the minimum to make it workable.
 
@@ -66,7 +66,7 @@ Create stubs:
 python .claude/skills/tasky/scripts/manage_tasks.py create <project> <roadmap> <track> <milestone> <slug>
 ```
 
-Confirm the sequence with the user before moving to detail.
+State the sequence, then move to detail. Wait for a reply only when the user is actively shaping the breakdown with you — never when a single stub is being defined inline on the way to executing it (execute.md → **Identifying the Task**).
 
 ---
 

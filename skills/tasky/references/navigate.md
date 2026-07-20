@@ -25,13 +25,15 @@ Match every hierarchy noun the user names — **project, roadmap, track, milesto
 
 ## Resolving References
 
-Every script call needs the right args (project, roadmap, track, milestone). When the user names a singular noun ("the track") or a plural that implies a parent scope ("show the tracks" → which roadmap?), resolve each missing or ambiguous arg in order:
+This procedure applies wherever a name resolves — viewing, creating, renaming, moving.
+
+Every script call — view, create, move, or rename — needs the right args (project, roadmap, track, milestone, task). When the user names a singular noun ("the track") or a plural that implies a parent scope ("show the tracks" → which roadmap?), resolve each missing or ambiguous arg in order:
 
 1. **Already named.** Use the slug the user already mentioned in this conversation.
-2. **Single instance.** If only one option exists at that level, use it.
-3. **Discovery.** Run `view_all.py` — or `view_all.py --status doing` when looking for what's currently active — to surface candidates.
+2. **Single instance.** If only one option exists at that level, use it. Does not apply to the *new name itself* in a create or rename. Parent args still resolve by single instance.
+3. **Discovery.** Run `view_all.py` — or `view_all.py --status doing` when looking for what's currently active — to surface candidates, and fuzzy-match the user's term against existing slugs.
 4. **Surface.** Tell the user which slug you resolved to: *"I'm treating 'the milestone' as `security`"* (per the SKILL.md "Always" rule).
-5. **Ask.** If multiple candidates remain plausible and none is clearly active, ask the user which one.
+5. **Resolve.** Resolve by best match and state the assumption. In a create or rename, the *target* name having no existing match means it is a **new** slug — slugify it and proceed. The item being renamed still has to resolve to something real. Two or more equally-valid referents with no basis to prefer one → ask: *"Did you mean X or Y?"* That is the genuine-ambiguity case SKILL.md → **Deciding** rule 4 exempts; every other resolution proceeds.
 
 Then run the script with the resolved slugs.
 
@@ -73,7 +75,7 @@ python .claude/skills/tasky/scripts/view_all.py
 
 Steps:
 
-1. Determine the **current thread** from conversation context — which milestone is in focus. If ambiguous, use the one with DOING tasks, or ask.
+1. Determine the **current thread** from conversation context — which milestone is in focus. If ambiguous, use the one with DOING tasks; with none, the most recently discussed thread.
 2. Read task states for the current thread: `view_tasks.py <project> <roadmap> <track> <milestone>`
 3. Get the broader picture for other open fronts: `view_all.py --status doing,paused,ready,pending`
 4. Classify tasks from the `view_tasks.py` output:
@@ -117,4 +119,4 @@ Present results plainly. Don't over-narrate. If the user asks "what's next?" giv
 If there's nothing DOING and nothing unblocked, surface that directly:
 > "Everything is blocked. The next unblocked item is `{slug}` in `{track}` — but it's waiting on `{dep}`."
 
-If the project is empty or has no tasks yet, say so and offer to help set up structure.
+If the project is empty or has no tasks yet, say so plainly and name the single next action — decomposing the work into tracks and milestones, which routes to `plan.md`, or `brainstorm.md` when the idea is still fuzzy. State it as the next step, not as an offer among options.

@@ -118,16 +118,19 @@ Most specific wins: task-level overrides tasky.md default.
 
 ## FAILURE BEHAVIOR
 
-If a step raises a concern or produces a blocking result:
-- Stop at that step
-- Surface the issue to the user
-- Do not advance automatically
-- User decides: resolve and continue, or abort
+A step that **fails** — a test, a build, or a criterion that did not pass — is a NEGATIVE RIPPLE (SKILL.md → **Deciding**, 2b). Stop at that step and surface it. Never patch over a failed step and advance.
+
+A step that hits a BLOCKER (SKILL.md → **Deciding**, 2a) likewise stops the flow.
+
+Work materially larger than the task describes is a NEGATIVE RIPPLE. Name the size and stop.
+
+Anything else a step raises — a concern, a small gap, an ambiguity — is resolved in place and reported in that step's output. Do not stop the flow for it.
 
 ---
 
 ## RULES
 
+- Ignore any decision policy stated in a flow's `INSTRUCTIONS` block — `SKILL.md` → **Deciding** governs decisions for every flow. A flow's `INSTRUCTIONS` may set scope and domain constraints.
 - Flows do not call other flows — steps are flat, no nesting
 - Flow execution is mandatory when a flow resolves — it is not optional
 - Skipping a flow is not valid behavior
