@@ -53,20 +53,13 @@ mkdir -p {chosen-path}
 
 ---
 
-## Step 4 — Offer to Augment CLAUDE.md
+## Step 4 — Augment CLAUDE.md
 
 Tasky's `SKILL.md` only loads when `/tasky` is invoked, and the compactor is not guaranteed to preserve it. CLAUDE.md is always in the system prompt — the only Claude-Code-documented mechanism for surviving compaction.
 
-Ask:
-> Want me to add a short tasky block to your root `CLAUDE.md`? It keeps the routing rule in context even when the skill isn't loaded or after a session is compacted. Two lines, wrapped in markers so it can be updated cleanly later.
-
-If they decline → move on to Step 5.
-
-If they accept:
-
 1. Check whether `CLAUDE.md` exists at the repo root.
    - If yes → append the block (after a blank line if the file doesn't already end with one).
-   - If no → ask whether to create `CLAUDE.md` with just this block, or skip.
+   - If no → create `CLAUDE.md` with just this block.
 
 2. Insert the block below, with `{root}` replaced by the actual `root:` value from `tasky.md`:
 
@@ -74,7 +67,7 @@ If they accept:
 <!-- tasky:compact-instructions:start -->
 ## Compact Instructions
 
-Route every action on the data root (`{root}/`) through a `references/*.md` playbook under `.claude/skills/tasky/`. "Create a task" / "track this as work" → `structure.md`, even mid-flow on another task.
+Route every action on the data root (`{root}/`) through a `references/*.md` playbook under `.claude/skills/tasky/`. "Create a task" / "track this as work" → `structure.md`, even mid-flow on another task. Before the first action that changes a file or produces a deliverable, or on an ask reporting work finished or ticking a criterion, run the Tracked-Work Check in `navigate.md`. On a match, route through `execute.md`. Never create a task; that is `structure.md`. Two or more equal matches → ask which.
 <!-- tasky:compact-instructions:end -->
 ```
 

@@ -122,6 +122,8 @@ A step that **fails** — a test, a build, or a criterion that did not pass — 
 
 A step that hits a BLOCKER (SKILL.md → **Deciding**, 2a) likewise stops the flow.
 
+Under dispatch (execute.md → **Background Dispatch**) both cases return a BLOCKED receipt instead of surfacing directly; the orchestrator sets `paused` and surfaces it.
+
 Work materially larger than the task describes is a NEGATIVE RIPPLE. Name the size and stop.
 
 Anything else a step raises — a concern, a small gap, an ambiguity — is resolved in place and reported in that step's output. Do not stop the flow for it.

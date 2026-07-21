@@ -84,6 +84,12 @@ EXECUTE: references/brainstorm.md
 - Resolve natural-language names to directory slugs before acting. Surface the resolution: "I'm treating 'auth module' as the `auth` milestone."
 - Dependencies are blockers. Never let a task or milestone start if a declared dependency is not DONE.
 - Route every action on the data root (`.agents/tasky/` by default) through a `references/*.md` playbook. "Create a task" / "track this as work" is structural intent → `structure.md`, even mid-flow on another task.
+- Before the first action that changes a file or produces a deliverable, run the Tracked-Work Check (`navigate.md`) for already-tracked work. Run it also when an ask reports finished work or ticks a criterion. Skip plain conversation, skip explicit structural intent — that goes to `structure.md` per the rule above — and skip it entirely when you are running under a dispatch brief (`execute.md`).
+  - One match → name the task in one line and route to `execute.md`. Never restart work already underway.
+  - No match, or the tracker is unreachable → do the work. Never create a task. Say "No tracked task matches", only when the tracker was reachable.
+  - Two or more equal matches → one line naming them: "Did you mean X or Y?"
+  - Routing may take a task to READY, never DONE. It never creates, renames, or resequences.
+- A playbook backgrounds into a sub-agent only when its whole input is already on disk and its output is a compact receipt. A playbook whose work phase questions the user by design (**Deciding**), writes tasky state, or ends in user sign-off (`validate.md`) stays in the main window. Today only `execute.md`'s work phase backgrounds; `plan.md`, `structure.md`, `navigate.md`, `define.md`, `flow.md`, `brainstorm.md`, `setup.md`, `validate.md`, and the hand-back above stay inline. This applies to every playbook in `references/`, present and future.
 - Decisions follow **Deciding** below.
 
 ---

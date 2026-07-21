@@ -23,6 +23,22 @@ Match every hierarchy noun the user names — **project, roadmap, track, milesto
 
 ---
 
+## Tracked-Work Check
+
+Get the full tree as JSON:
+
+```
+python .claude/skills/tasky/scripts/scan.py
+```
+
+- The JSON ends at the final `]`. A `[tasky]` banner follows it on stdout — strip it before parsing.
+- Filter out DONE entries in context. Do not pass `--status`.
+- Match the user's wording against each entry's `title` and `slug`.
+- Carry the full coordinates — project, roadmap, track, milestone, slug — with every match.
+- Cache the result for the session. Re-run after a create, rename, or move. Do not re-run after a status write.
+
+---
+
 ## Resolving References
 
 This procedure applies wherever a name resolves — viewing, creating, renaming, moving.
