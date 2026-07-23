@@ -113,7 +113,7 @@ The sub-agent returns a per-criterion verdict with its evidence. You write `[ ]`
 
 **Stated cost:** criteria land only at receipt time. A run that dies loses partial progress. Re-dispatch from the first unchecked criterion.
 
-Unchanged under dispatch: READY not DONE, the disk re-read before READY, and the `TO TEST:` list (**Completing**); DONE only on user confirmation; never create, rename, or resequence a task.
+Unchanged under dispatch: READY not DONE, the disk re-read before READY, and the report-form hand-back (**Completing**); DONE only on user confirmation; never create, rename, or resequence a task.
 
 ---
 
@@ -204,13 +204,17 @@ All criteria checked → set status to READY, not DONE. READY means the work is 
 
 Before setting READY, re-read the task file from disk — every criterion `[x]` in the file, not in your memory of the session. A criterion still `[ ]` means the work isn't done, whatever the conversation says.
 
-Before setting READY, report a numbered list headed `TO TEST:` — one line per entry, each naming a single action the user takes and the result they should see, derived from the task's criteria.
-
 ```
 python manage_tasks.py set-status <project> <roadmap> <track> <milestone> <slug> ready
 ```
 
-Tell the user the task is ready for validation. Wait. Do not mark DONE until they confirm.
+Then hand back to the user. This hand-back is the step's ONLY user-facing output, and it ALWAYS takes the form in `references/report.md` — never a raw status line, never a machine dump. Cannot render the form → surface that as a blocker; never fall back to internals.
+
+Fill the form from the criteria: `DO` = the actions the user takes to validate, `WHAT` = the result each should show. All criteria met → the minimal report — the validation action, or `NOTE`-alone when there is nothing to do but confirm. Any criterion unmet → `NOTE` names only the unmet ones, in plain language.
+
+Never surface internals in the hand-back — criterion numbers, checkboxes, a `TO TEST` label, gate mechanics, `set-status`, directory slugs, the Receipt. Report CONTENT is governed by SKILL.md → **Deciding**, same as every other hand-back.
+
+Wait. Do not mark DONE until the user confirms.
 
 Once the user confirms:
 

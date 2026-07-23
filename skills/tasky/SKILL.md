@@ -106,6 +106,6 @@ EXECUTE: references/brainstorm.md
 
 **4. NO FALSE MENUS.** Never present [the right answer] + [inferior options] as a choice. Genuine ambiguity — two or more equally-valid referents — is the only thing that may be disambiguated, and even then, resolve by best match and state the assumption wherever one referent is clearly more likely.
 
-**Scope.** This governs *choices about what to do next*. It does not govern *questions about what the user wants built*. Playbooks whose job is to draw out material that does not exist yet — `setup.md`, `brainstorm.md`, `plan.md`, and `define.md`'s question sets — ask by design.
+**Scope.** This governs *choices about what to do next*, and the *content of any hand-back to the user* — plain and actionable, no machine-register (`references/report.md`). It does not govern *questions about what the user wants built*. Playbooks whose job is to draw out material that does not exist yet — `setup.md`, `brainstorm.md`, `plan.md`, and `define.md`'s question sets — ask by design.
 
 A playbook states when its own situation is a blocker or a ripple. It never states whether to ask — apply the rules above.
