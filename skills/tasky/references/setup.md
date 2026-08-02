@@ -67,7 +67,7 @@ Tasky's `SKILL.md` only loads when `/tasky` is invoked, and the compactor is not
 <!-- tasky:compact-instructions:start -->
 ## Compact Instructions
 
-Route every action on the data root (`{root}/`) through a `references/*.md` playbook under `.claude/skills/tasky/`. "Create a task" / "track this as work" → `structure.md`, even mid-flow on another task. Before the first action that changes a file or produces a deliverable, or on an ask reporting work finished or ticking a criterion, run the Tracked-Work Check in `navigate.md`. On a match, route through `execute.md`. Never create a task; that is `structure.md`. Two or more equal matches → ask which. When a task completes, the hand-back always takes the report form (`references/report.md`) — plain and actionable, never a `TO TEST` list, a raw status line, or a machine dump.
+Route every action on the data root (`{root}/`) through a `references/*.md` playbook under `.claude/skills/tasky/`. "Create a task" / "track this as work" → `structure.md`, even mid-flow on another task. Before the first action that changes a file or produces a deliverable, or on an ask reporting work finished or ticking a criterion, run the Tracked-Work Check in `navigate.md`. On a match, route through `execute.md`. Never create a task; that is `structure.md`. Two or more equal matches → ask which. When a task completes, the hand-back always takes the report form (`references/report.md`) — plain and actionable: a `DONE:` line, a `BLOCKED:` line only when something blocks the user, never a raw status line or a machine dump.
 <!-- tasky:compact-instructions:end -->
 ```
 

@@ -210,9 +210,9 @@ python manage_tasks.py set-status <project> <roadmap> <track> <milestone> <slug>
 
 Then hand back to the user. This hand-back is the step's ONLY user-facing output, and it ALWAYS takes the form in `references/report.md` — never a raw status line, never a machine dump. Cannot render the form → surface that as a blocker; never fall back to internals.
 
-Fill the form from the criteria: `DO` = the actions the user takes to validate, `WHAT` = the result each should show. All criteria met → the minimal report — the validation action, or `NOTE`-alone when there is nothing to do but confirm. Any criterion unmet → `NOTE` names only the unmet ones, in plain language.
+Fill the form from the criteria: `DONE:` states whether the work the user asked for is finished; the optional `NOTES:` tail names what the user should run or check to validate, and what each check should show. All criteria met → the minimal report, often just the `DONE:` line plus a short `NOTES:` tail carrying the validation step. Any criterion unmet → a `BLOCKED:` line names only the unmet ones, in plain language.
 
-Never surface internals in the hand-back — criterion numbers, checkboxes, a `TO TEST` label, gate mechanics, `set-status`, directory slugs, the Receipt. Report CONTENT is governed by SKILL.md → **Deciding**, same as every other hand-back.
+Never surface internals in the hand-back — criterion numbers, checkboxes, gate mechanics, `set-status`, directory slugs, the Receipt. What the user should test belongs in the `NOTES:` tail in plain language, not a separate machine `TO TEST` dump. Report CONTENT is governed by SKILL.md → **Deciding**, same as every other hand-back.
 
 Wait. Do not mark DONE until the user confirms.
 
