@@ -104,7 +104,7 @@ The report arrives inline by default. At `verdict` depth — or whenever you ask
 npx skills add agenticexpert/skills/ripper
 ```
 
-Part of [Agentic Expert](../../../README.md). Built by **Shawn Bullock** — [agenticexpert.ai](https://agenticexpert.ai).
+Part of [Agentic Expert](../../README.md). Built by **Shawn Bullock** — [agenticexpert.ai](https://agenticexpert.ai).
 
 ## License
 

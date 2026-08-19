@@ -53,25 +53,29 @@ mkdir -p {chosen-path}
 
 ---
 
-## Step 4 — Augment CLAUDE.md
+## Step 4 — Augment the always-loaded instruction file
 
-Tasky's `SKILL.md` only loads when `/tasky` is invoked, and the compactor is not guaranteed to preserve it. CLAUDE.md is always in the system prompt — the only Claude-Code-documented mechanism for surviving compaction.
+Tasky's `SKILL.md` only loads when `/tasky` is invoked, and the compactor is not guaranteed to preserve it. The host's always-loaded instruction file is the mechanism that survives compaction.
 
-1. Check whether `CLAUDE.md` exists at the repo root.
+1. Resolve two paths before writing anything. Read both off the running install; never type either literally.
+   - `{host}` — the always-loaded instruction file at the repo root: `CLAUDE.md` for Claude Code, `AGENTS.md` for Codex. Write every one that is present, and when none is, the one belonging to the host now running.
+   - `{skills}` — the directory holding this `setup.md`, minus `/references` — for example `.claude/skills/tasky` or `.agents/skills/tasky`. A path pointing outside the running install sends the agent to a copy that will drift.
+
+2. Check whether `{host}` exists at the repo root.
    - If yes → append the block (after a blank line if the file doesn't already end with one).
-   - If no → create `CLAUDE.md` with just this block.
+   - If no → create `{host}` with just this block.
 
-2. Insert the block below, with `{root}` replaced by the actual `root:` value from `tasky.md`:
+3. Insert the block below, with `{root}` replaced by the actual `root:` value from `tasky.md` and `{skills}` by the path resolved above:
 
 ```markdown
 <!-- tasky:compact-instructions:start -->
 ## Compact Instructions
 
-Route every action on the data root (`{root}/`) through a `references/*.md` playbook under `.claude/skills/tasky/`. "Create a task" / "track this as work" → `structure.md`, even mid-flow on another task. Before the first action that changes a file or produces a deliverable, or on an ask reporting work finished or ticking a criterion, run the Tracked-Work Check in `navigate.md`. On a match, route through `execute.md`. Never create a task; that is `structure.md`. Two or more equal matches → ask which. When a task completes, the hand-back always takes the report form (`references/report.md`) — plain and actionable: a `DONE:` line, a `BLOCKED:` line only when something blocks the user, never a raw status line or a machine dump.
+Route every action on the data root (`{root}/`) through a `references/*.md` playbook under `{skills}/`. "Create a task" / "track this as work" → `structure.md`, even mid-flow on another task. Before the first action that changes a file or produces a deliverable, or on an ask reporting work finished or ticking a criterion, run the Tracked-Work Check in `navigate.md`. On a match, route through `execute.md`. Never create a task; that is `structure.md`. Two or more equal matches → ask which. When a task completes, the hand-back always takes the report form (`references/report.md`) — plain and actionable: a `DONE:` line, a `BLOCKED:` line only when something blocks the user, never a raw status line or a machine dump.
 <!-- tasky:compact-instructions:end -->
 ```
 
-3. If `CLAUDE.md` already contains a `tasky:compact-instructions` block, replace the content between the markers (keep the markers themselves). Never duplicate or append a second block.
+4. If `{host}` already contains a `tasky:compact-instructions` block, replace the content between the markers (keep the markers themselves). Never duplicate or append a second block.
 
 ---
 

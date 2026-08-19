@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Resume decision report</title>
+<style>
+
+:root{
+  --bg:#fcfcfb;--surface:#f4f4f2;--surface-2:#efeeeb;
+  --ink:#1b1b1a;--ink-2:#585754;--ink-3:#8c8a85;
+  --line:#eceae5;--line-2:#dcd9d2;--line-3:#cbc7bd;
+  --accent:#35566b;--accent-soft:#eaf0f3;
+  --u-crit:#b23b30;--u-high:#c08a2e;--u-med:#7f8a63;--u-low:#b7b2a6;--u-none:#d3cfc6;--done:#5f7a53;--bad:#b23b30;--accent2:#35566b;
+  --card:#fff;
+  --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --mono:'Spline Sans Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:13px;line-height:1.5;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+button,input,textarea,select{font:inherit}
+h1,h2{font-family:var(--sans);font-weight:600;letter-spacing:-.01em;margin:0}
+a{color:var(--accent);text-decoration:none}
+.muted,.quote,.meta{color:var(--ink-3);font-size:12px}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,.tri:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.5;cursor:not-allowed}
+
+/* top bar — segmented mode pills */
+.top{position:sticky;top:0;z-index:6;display:flex;gap:6px;align-items:center;padding:9px 4vw;background:var(--surface);border-bottom:1px solid var(--line-2)}
+.top>span[style]{margin-right:auto}
+.top button{font-size:12px;font-weight:500;color:var(--ink-2);background:none;border:1px solid transparent;border-radius:7px;padding:6px 15px;cursor:pointer;transition:.12s}
+.top button:hover{color:var(--ink);background:var(--surface-2)}
+.top button.active{background:#fff;color:var(--ink);border-color:var(--line-2);box-shadow:0 1px 2px rgba(0,0,0,.07)}
+#crossExport{font-size:11px;color:var(--ink-3)}
+.bridge{min-width:150px;text-align:right;white-space:nowrap;font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:.02em}
+
+.wrap{max-width:1180px;margin:26px auto;padding:0 4vw 90px}
+
+/* decision card */
+.decision{background:var(--ink);color:#fff;border-radius:12px;padding:22px 24px;box-shadow:0 2px 14px rgba(27,27,26,.16)}
+.decision h1{font-size:22px;font-weight:600;margin:0 0 13px;letter-spacing:-.015em;line-height:1.28}
+.gates{display:flex;flex-wrap:wrap;gap:8px}
+.gates span{font-size:11px;font-weight:600;letter-spacing:.03em;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.17);color:#e9eef1;border-radius:999px;padding:4px 12px}
+
+/* section cards */
+.target,.readers,.attention,.outcomes{margin:20px 0;padding:18px 20px;background:var(--card);border:1px solid var(--line-2);border-radius:11px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.target h2,.readers h2,.attention h2,.outcomes h2,.observations h2{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0 0 12px}
+.readers p.muted{margin:-4px 0 12px}
+.targetgrid,.readergrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.targetgrid>div,.reader{padding:12px 13px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.reader b{display:block;font-size:12px;color:var(--ink);margin-bottom:3px}
+.reader div{font-size:12px;color:var(--accent);font-weight:600;margin-bottom:4px}
+.reader small{color:var(--ink-2);line-height:1.5}
+.targetgrid b{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.targetgrid p{margin:5px 0 4px;color:var(--ink);line-height:1.5}
+.targetgrid small{color:var(--ink-3);font-size:11px}
+.attention blockquote{margin:11px 0;padding-left:14px;border-left:2px solid var(--done);font-size:14px;line-height:1.5;color:var(--ink)}
+.attention blockquote .muted{margin-top:4px}
+
+/* findings header + buttons */
+.observations{display:flex;align-items:center;gap:14px;margin:28px 0 10px}
+.observations h2{margin:0 auto 0 0}
+#observationToggle,.actions button,.acts button,.detailbox button{font-size:12px;font-weight:500;cursor:pointer;background:#fff;border:1px solid var(--line-2);color:var(--ink-2);border-radius:7px;padding:6px 12px;transition:.12s}
+#observationToggle:hover,.actions button:hover,.acts button:hover,.detailbox button:hover{border-color:var(--accent);color:var(--accent)}
+
+/* coverage table */
+table{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);border:1px solid var(--line-2);border-radius:10px;font-size:13px}
+thead th:first-child{border-top-left-radius:10px}
+thead th:last-child{border-top-right-radius:10px}
+tbody tr:last-child td:first-child{border-bottom-left-radius:10px}
+tbody tr:last-child td:last-child{border-bottom-right-radius:10px}
+thead th{position:sticky;top:44px;z-index:2;background:var(--surface);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);text-align:left;padding:9px 11px;border-bottom:1px solid var(--line-2);border-right:1px solid var(--line);white-space:nowrap}
+thead th:last-child{border-right:none}
+tr.section.wholeread td{background:var(--surface-2);text-transform:none;border-top:2px solid var(--line-2);padding:9px 11px}
+.wr-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.wr-head b{font-size:14px}
+.wr-verdict,.wr-status{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);border:1px solid var(--line-2);border-radius:6px;padding:2px 7px}
+.wr-assessment{margin-top:6px;color:var(--ink-2);font-size:12.5px;max-width:72ch}
+.stale-badge{font-size:11px;font-weight:600;color:#8a5a00;background:#fbe7c9;border:1px solid #e6c67a;border-radius:6px;padding:2px 8px}
+.sevfilter{display:flex;gap:8px;flex-wrap:wrap}
+.sevchip{font-size:11px;font-weight:600;letter-spacing:.03em;cursor:pointer;border-radius:14px;padding:4px 11px;border:1px solid var(--line-2);background:#fff;color:var(--ink-3);opacity:.45}
+.sevchip.on{opacity:1}
+.sevchip.t1.on{color:#8a1c1c;border-color:#e0a3a3;background:#fbeaea}
+.sevchip.t2.on{color:#8a5a00;border-color:#e6c67a;background:#fbe7c9}
+.sevchip.t3.on{color:var(--ink-2);border-color:var(--line-2);background:var(--surface-2)}
+.sevtag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;border-radius:5px;padding:1px 6px;margin-right:7px;vertical-align:1px}
+.sevtag.t1{color:#8a1c1c;background:#fbeaea;border:1px solid #e0a3a3}
+.sevtag.t2{color:#8a5a00;background:#fbe7c9;border:1px solid #e6c67a}
+.sevtag.t3{color:var(--ink-3);background:var(--surface-2);border:1px solid var(--line-2)}
+.wr-verdict.v-strong{color:#1f6b3b;border-color:#a8d5ba}
+.wr-verdict.v-adequate{color:#8a5a00;border-color:#e6c67a}
+.wr-verdict.v-weak{color:#8a1c1c;border-color:#e0a3a3}
+tr.section.wholeread.is-stale td{box-shadow:inset 3px 0 0 #e0a53a}
+td{text-align:left;vertical-align:top;padding:9px 11px;border-bottom:1px solid var(--line);border-right:1px solid var(--line)}
+td:last-child{border-right:none}
+tr.item:hover td{background:#f8fafb}
+tr.section td{background:var(--surface-2);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);border-top:1px solid var(--line-2)}
+tbody tr:last-child td{border-bottom:none}
+.c-n{text-align:center;font-family:var(--mono);font-size:12px;color:var(--ink-3);width:38px}
+.c-status{text-align:center;width:42px}
+.c-el b{font-size:13px;color:var(--ink)}
+.c-el .quote{font-family:var(--mono);font-size:12px;line-height:1.4;color:var(--ink-2);margin-top:3px}
+.c-verdict{white-space:nowrap;width:132px}
+.c-act{white-space:nowrap;width:110px}
+.c-act .actions button{padding:5px 9px}
+tr.item[data-status="done"] .c-el b{color:var(--ink-3);text-decoration:line-through;text-decoration-color:var(--line-3)}
+tr.item[data-status="ignore"]{opacity:.55}
+
+/* tri-state checkbox glyph */
+.tri{display:inline-block;width:16px;height:16px;border:1.5px solid var(--line-3);border-radius:4px;background:#fff;cursor:pointer;padding:0;position:relative;vertical-align:middle;transition:.12s}
+.tri:hover{border-color:var(--accent)}
+.tri[data-st="done"]{background:var(--done);border-color:var(--done)}
+.tri[data-st="done"]::after{content:"";position:absolute;left:5px;top:1px;width:3.5px;height:8.5px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(43deg)}
+.tri[data-st="ignore"]{background:var(--surface-2);border-color:var(--line-2)}
+.tri[data-st="ignore"]::after{content:"";position:absolute;left:3px;top:6.5px;width:8px;height:1.5px;background:var(--ink-3);border-radius:1px}
+
+/* verdict dot */
+.urgency{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:middle;background:var(--u-none)}
+.urgency.crit{background:var(--u-crit)}.urgency.high{background:var(--u-high)}.urgency.med{background:var(--u-med)}.urgency.low{background:var(--u-low)}.urgency.none{background:var(--u-none)}
+
+.actions,.acts{display:flex;gap:5px;flex-wrap:wrap}
+.c-act .actions{justify-content:flex-end}
+
+/* expand panel */
+.detail{display:none}
+.detail.open{display:table-row}
+.detailbox{padding:16px 14px 20px;background:var(--accent-soft);border-bottom:1px solid var(--line-2)}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.field{padding:11px 13px;background:#fff;border:1px solid var(--line-2);border-radius:8px}
+.field b{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:5px}
+.field p{margin:0;font-size:14px;line-height:1.5}
+.field button{margin-top:9px}
+.detailbox pre{font-family:var(--mono);margin:12px 0 0;padding:13px 14px;white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.6;color:var(--ink-2);background:#fff;border:1px solid var(--line-2);border-radius:8px}
+.error{color:var(--bad);min-height:1.4em;font-size:12px;margin-top:8px}
+.saving{color:var(--accent)}
+
+/* editor form */
+.editor{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px}
+.editor label{display:grid;gap:5px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.editor .wide{grid-column:1/-1}
+.editor input,.editor textarea{font-family:var(--mono);font-size:12px;color:var(--ink);background:#fff;border:1px solid var(--line-2);border-radius:7px;padding:8px 10px}
+.editor textarea{min-height:80px}
+.editor button{font-size:12px;font-weight:500;cursor:pointer;background:#fff;border:1px solid var(--line-2);color:var(--ink-2);border-radius:7px;padding:7px 14px}
+.editor button[type="submit"]{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* résumé preview tab — a document sheet */
+#resume,#linkedin{display:none;max-width:820px;margin:26px auto;background:#fff;border:1px solid var(--line-2);border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);padding:44px 54px}
+#resume h1,#linkedin h1{font-size:26px;font-weight:700;text-align:center;letter-spacing:-.01em;margin:0 0 4px}
+#resume h2,#linkedin h2{font-size:13px;font-weight:600;color:var(--ink-2);text-align:center;margin:0 0 12px;padding-bottom:14px;border-bottom:2px solid var(--ink)}
+#resume>p,#linkedin>p{color:var(--ink);margin:0 0 8px;line-height:1.55}
+#linkedin p.muted{color:var(--ink-2);text-align:center;font-size:12px;margin:0 0 18px}
+.preview-exp{margin:16px 0}
+.preview-exp>b{font-size:14px;color:var(--ink)}
+.preview-exp>div{font-size:12px;font-style:italic;color:var(--ink-2);margin:2px 0 6px}
+.preview-exp ul{margin:6px 0 0;padding-left:18px}
+.preview-exp li{margin:4px 0;line-height:1.5}
+
+/* rubric tab */
+#rubric{display:none}
+#rubric .wrap{max-width:1180px;margin:26px auto;padding:0 4vw}
+#rubric h1{font-size:19px;font-weight:600;margin:0 0 4px}
+#rubric table{margin-top:14px}
+#rubric td b{color:var(--ink)}
+#rubric .quote{font-family:var(--mono);font-size:12px;color:var(--ink-2);background:#fff;border:1px solid var(--line);border-radius:6px;padding:6px 9px;margin:3px 0}
+#rubric ul{margin:0;padding-left:16px}
+#rubric li{margin:3px 0}
+table.rubric{table-layout:fixed}
+table.rubric th:nth-child(1),table.rubric td:nth-child(1){width:19%}
+table.rubric th:nth-child(2),table.rubric td:nth-child(2){width:7%}
+table.rubric th:nth-child(3),table.rubric td:nth-child(3){width:9%}
+table.rubric th:nth-child(4),table.rubric td:nth-child(4){width:29%}
+table.rubric th:nth-child(5),table.rubric td:nth-child(5){width:26%}
+table.rubric td{vertical-align:top}
+table.rubric .c-num{white-space:nowrap;font-variant-numeric:tabular-nums}
+table.rubric .c-act{width:10%}
+table.rubric .c-act .actions{display:flex;flex-direction:column;gap:4px}
+tr.rdetail td{background:var(--surface-2);border-top:0}
+.rdetail-in{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.rdetail-h{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+@media (max-width:760px){.rdetail-in{grid-template-columns:1fr}}
+
+/* craft tab */
+#craft{display:none}
+#craft .wrap{max-width:1180px;margin:26px auto;padding:0 4vw}
+#craft h1{font-size:19px;font-weight:600;margin:0 0 4px}
+#craft table{margin-top:14px}
+#craft td b{color:var(--ink)}
+#craft .quote{font-family:var(--mono);font-size:12px;color:var(--ink-2);background:#fff;border:1px solid var(--line);border-radius:6px;padding:6px 9px;margin:3px 0}
+#craft ul{margin:0;padding-left:16px}
+#craft li{margin:3px 0}
+#craft .c-path{font-family:var(--mono);font-size:12px;word-break:break-all}
+.cgrade{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);border:1px solid var(--line-2);border-radius:6px;padding:2px 7px;white-space:nowrap}
+.cgrade.g-winning{color:#1f6b3b;border-color:#a8d5ba}
+.cgrade.g-competent{color:var(--ink-2);border-color:var(--line-2)}
+.cgrade.g-median{color:#8a5a00;border-color:#e6c67a}
+.cgrade.g-below-bar{color:#8a1c1c;border-color:#e0a3a3}
+
+.toast{position:fixed;right:20px;bottom:20px;background:var(--ink);color:#fff;font-size:12px;padding:10px 15px;border-radius:8px;display:none;box-shadow:0 3px 14px rgba(0,0,0,.22);z-index:40}
+dialog{max-width:680px;width:calc(100% - 30px);border:1px solid var(--line-2);border-radius:11px;padding:20px}
+dialog textarea{width:100%;min-height:280px;font-family:var(--mono);font-size:12px;border:1px solid var(--line-2);border-radius:7px;padding:10px}
+.hidden{display:none!important}
+@media(max-width:760px){.editor{grid-template-columns:1fr}.wrap{padding-left:5vw;padding-right:5vw}thead th{top:var(--navh,52px)}
+html{scroll-padding-top:calc(var(--navh,52px) + 8px)}
+tbody tr{scroll-margin-top:calc(var(--navh,52px) + var(--theadh,34px))}#resume{padding:30px 22px}th:nth-child(4),td:nth-child(4){display:none}}
+
+</style>
+</head>
+<body>
+<div class="top" aria-label="Report controls"><span style="margin-right:auto"></span><button id="reportMode">Report</button><button id="resumeMode">Résumé preview</button><button id="linkedinMode" class="hidden">LinkedIn</button><button id="rubricMode">Rubric</button><button id="craftMode" class="hidden">Craft</button><button id="crossExport" title="Copy the full report JSON; use only for explicit cross-item work">Cross-item export</button><span class="bridge" id="bridgeState">bridge offline</span></div>
+<main id="report"><div class="wrap" id="app"></div></main>
+<section id="resume"></section>
+<section id="linkedin"></section>
+<section id="rubric"></section>
+<section id="craft"></section>
+<div class="toast" id="toast" role="status"></div>
+
+<script type="application/json" id="report-data">
+{
+ "meta":{"reportId":"candidate-review","contractVersion":"2.4.0","parseStatus":{"state":"untested","affectsAts":false,"evidence":null},"name":"Candidate","role":"Role","mode":"standard","brief":[{"k":"Lane","v":"Platform engineering · unconfirmed"}],"scaleNote":"Must-Talk 0–4","plus1":"Surface production ownership above the fold.","signoff":"resume · standard","decision":{"moveForward":"not yet","reason":"ATS is weak-pass: production evidence is buried.","mustTalk":2,"gates":{"ats":"weak-pass","screener":"call","manager":"interview"},"urgencyQuote":null},"readers":[{"name":"ATS","verdict":"weak-pass","evidence":"Required production term is buried."},{"name":"Recruiter","verdict":"stop-and-read","evidence":"Lane is visible."},{"name":"HR","verdict":"advance","evidence":"Level is coherent."},{"name":"Hiring manager","verdict":"interview","evidence":"Ownership appears relevant."},{"name":"Technical reviewer","verdict":"credible-needs-proof","evidence":"Scale needs confirmation."}],"targetDecode":{"buyingNeed":{"statement":"","beneficiary":null,"constraint":null,"status":"unknown","evidence":[],"confirmingQuestion":"What business result is this role expected to change?"},"jdSupport":{"nonNegotiables":[],"centralProblem":{"status":"unknown","itemIds":[]},"differentiator":null,"smallestTruthfulRepair":null}}},
+ "resumeDoc":{"name":"Candidate","headline":"Platform Engineer","contact":{"location":"Chicago, IL","phone":"","email":"","links":[]},"summary":"Built production platforms.","coreTech":[],"experience":[{"org":"Example Co","role":"Engineer","dates":"2024–2026","bullets":["Owned a production platform rollout."],"stack":"Python"}],"extras":[]},
+ "getsAttention":[{"q":"Owned a production platform rollout.","n":"Hiring manager: establishes ownership."}],
+ "rubric":[],
+ "sections":[{"id":"resume","title":"Resume"},{"id":"donext","title":"Do next"},{"id":"readers","title":"Readers"}],
+ "resumeSections":[{"sectionId":"experience-0","path":"resumeDoc.experience.0","title":"Example Co — Engineer","verdict":"adequate","status":"open","staleness":"fresh","assessment":"Ownership is visible; the rollout bullet needs a named result to land with a hiring manager."}],
+ "items":[{"n":1,"section":"resume","sectionId":"experience-0","status":"open","title":"Experience bullet","quoted":"Owned a production platform rollout.","reason":"A hiring manager can see ownership but not what changed.","verdict":"rewrite","urgency":"med","suggestion":"Add who used the platform and the result you observed. If you do not know the result yet, answer: Who used it, and what became faster, safer, or more reliable?","fields":[{"k":"who","v":"Hiring manager, two-minute read."}],"rewrite":[{"lab":"confirmed","txt":"Owned the platform rollout from design through production adoption."}],"target":"resumeDoc.experience.0.bullets.0","decisionEffect":"proof","meta":{"scope":"atom","visibility":"hotspot"},"ctx":{"itemId":1,"path":"resumeDoc.experience.0.bullets.0","lane":"Platform engineering","reader":"hiring manager","atom":"Owned a production platform rollout.","neighbor":"Example Co · Engineer · 2024–2026","evidence":"seen: Owned a production platform rollout.","truth":"confirmed wording only","decisionEffect":"proof","suggestion":"Add who used the platform and the result you observed.","relatedIds":[],"decisions":[],"questions":["Who used it and what changed?"]},"prompt":"Item: 1\nAtom: Owned a production platform rollout.\nEvidence: seen: Owned a production platform rollout.\nTruth: confirmed wording only\nDecision effect: proof\nTask: Rewrite using only confirmed user, constraint, and result details."}],
+ "outcomes":[]
+}
+</script>
+
+<script type="application/json" id="report-contract">
+{
+ "version":"2.4.0",
+ "top":{"meta":"object","resumeDoc":"object","getsAttention":"array","rubric":"array","sections":"array","resumeSections":"array","items":"array","outcomes":"array"},
+ "item":{"required":["n","section","sectionId","status","title","verdict","reason","urgency","suggestion","fields","decisionEffect","meta","ctx"],"field":["k","v"]},
+ "resumeDoc":{"required":["name","experience"],"experienceRow":["role","bullets"]},
+ "perSection":{"resume":{"rewriteWhen":"rewrite|promote"},"linkedin":{"needFields":["evidence"]}}
+}
+</script>
+
+<script>
+function deriveDecision(ats,screener,manager,quote){var s,g;if(ats==="fail"){s=0;g="ats";}else if(ats==="risky"||screener==="no-call"||manager==="no"){s=1;g=ats==="risky"?"ats":screener==="no-call"?"screener":"manager";}else if(ats==="weak-pass"||screener==="maybe"||manager==="insufficient"){s=2;g=ats==="weak-pass"?"ats":screener==="maybe"?"screener":"manager";}else if(quote&&(screener==="urgent-call"||manager==="priority-interview")){s=4;g="urgency";}else{s=3;g="ats";}return{mustTalk:s,moveForward:s<2?"no":s===2?"not yet":"yes",decidingGate:g};}
+function containsResumeDoc(v,depth){depth=depth||0;if(depth>64)return false;if(Array.isArray(v))return v.some(function(x){return containsResumeDoc(x,depth+1);});if(v&&typeof v==="object"){if(("name" in v)&&("experience" in v))return true;return Object.keys(v).some(function(k){return containsResumeDoc(v[k],depth+1);});}if(typeof v==="string"){var candidates=[v],first=v.indexOf("{"),last=v.lastIndexOf("}");if(first>=0&&last>first)candidates.push(v.slice(first,last+1));return candidates.some(function(s){try{var parsed=JSON.parse(s);return parsed!==v&&containsResumeDoc(parsed,depth+1);}catch(_e){return false;}});}return false;}
+function causalOutcomeClaim(note){var a="(?:edit|rewrite|rewrote|change|resume|summary|bullet|skill|wording)",o="(?:applications?|callbacks?|interviews?|calls?|recruiters?|screeners?|response rate)",v="(?:caus(?:e|ed)|prov(?:e|ed)|drove|driven|produced|generated|yielded|triggered|boosted|increased|improved|lifted|doubled|raised|converted|secured|earned|affected|delivered|explains|led to|brought in|was the reason|responsible for|is why)",claim=new RegExp("\\b"+a+"\\b.{0,80}\\b"+v+"\\b.{0,80}\\b"+o+"\\b","i").test(note)||new RegExp("\\b"+a+"\\b.{0,80}\\b(?:made|got)\\b.{0,30}\\b(?:call|interview)\\b","i").test(note)||new RegExp("\\b"+o+"\\b.{0,80}\\b(?:because|thanks to|due to|as a result of|resulted from|flowed from|caused by|attributed to|attributable to|on account of)\\b.{0,80}\\b"+a+"\\b","i").test(note)||new RegExp("\\bcredit\\b.{0,40}\\b"+a+"\\b.{0,50}\\b"+o+"\\b","i").test(note),safe=new RegExp("\\b"+a+"\\b.{0,100}\\b(?:did not|does not|cannot|can't|never)\\s+(?:be said to have\\s+|have\\s+)?\\b(?:cause|caused|prove|drive|lead|produce|generate|yield|trigger|result|increase|improve|boost|lift|affect)\\b","i").test(note)||new RegExp("\\b"+o+"\\b.{0,50}\\b(?:(?:was|were) not (?:caused|proved|driven|produced|generated|yielded|triggered) by|cannot be attributed to)\\b.{0,30}\\b"+a+"\\b","i").test(note)||new RegExp("\\bno evidence\\b.{0,100}\\b"+a+"\\b.{0,50}\\b(?:caus|prov|driv|lead|produc|generat|yield|trigger|result|increase|improve|boost|lift|affect)","i").test(note)||/\b(causation is not established|no attribution|observed after, not attributed to)\b/i.test(note);return claim&&!safe;}
+function exactKeys(v,keys){return !!v&&typeof v==="object"&&!Array.isArray(v)&&Object.keys(v).sort().join("|")===keys.slice().sort().join("|");}
+function keysWithin(v,req,opt){if(!v||typeof v!=="object"||Array.isArray(v))return false;var k=Object.keys(v),all=req.concat(opt);return req.every(function(r){return k.indexOf(r)>=0;})&&k.every(function(x){return all.indexOf(x)>=0;});}
+function nonempty(v){return typeof v==="string"&&!!v.trim();}
+function validItemIds(v,ids){return Array.isArray(v)&&v.every(Number.isInteger)&&new Set(v).size===v.length&&v.every(function(n){return !!ids[n];});}
+function validateV21(DATA,e,ids){
+ var m=DATA.meta||{},td=m.targetDecode,bnk=["statement","beneficiary","constraint","status","evidence","confirmingQuestion"],tdk=["buyingNeed","jdSupport"],jdk=["nonNegotiables","centralProblem","differentiator","smallestTruthfulRepair"];
+ (DATA.items||[]).forEach(function(it){if(!it||typeof it!=="object"||Array.isArray(it))return;var n=it.n,pm=it.meta;if(!exactKeys(pm,["scope","visibility"])){e.push("item "+(n==null?"?":n)+" meta must have exactly scope,visibility");return;}if(["atom","context"].indexOf(pm.scope)<0)e.push("item "+(n==null?"?":n)+" meta.scope has invalid value");if(["hotspot","supporting","clean"].indexOf(pm.visibility)<0)e.push("item "+(n==null?"?":n)+" meta.visibility has invalid value");if(pm.visibility==="clean"&&it.verdict!=="keep")e.push("item "+(n==null?"?":n)+" clean visibility requires keep verdict");if(pm.visibility==="hotspot"){[["title",80],["reason",600],["suggestion",400]].forEach(function(x){if(!nonempty(it[x[0]])||it[x[0]].length>x[1])e.push("item "+(n==null?"?":n)+" hotspot "+x[0]+" exceeds "+x[1]+" characters or is empty");});var copy=[it.title||"",it.reason||"",it.suggestion||""].join(" "),terms=["atom","gate","decisioneffect","provenance","semantic","vector","pcopo","the candidate"];terms.forEach(function(term){if(new RegExp("\\b"+term+"\\b","i").test(copy))e.push("item "+(n==null?"?":n)+" hotspot copy exposes internal term "+term);});}if(pm.scope==="context"){var c=it.ctx&&typeof it.ctx==="object"?it.ctx:{},a=Array.isArray(c.relatedIds)?c.relatedIds:[],related=a.length>=2&&new Set(a).size===a.length&&a.every(function(v){return !!ids[v]&&v!==n;}),group=/^resumeDoc\.(?:summary|experience\.\d+|coreTech|extras)$/.test(typeof c.path==="string"?c.path:""),parts=typeof c.evidence==="string"?c.evidence.split(/\n+/).filter(function(v){return !!v.trim();}):[];if(!(related||(group&&parts.length>=2)))e.push("item "+(n==null?"?":n)+" context scope needs two related items or two group evidence lines");}});
+ if(!exactKeys(td,tdk)){e.push("meta.targetDecode must have exactly buyingNeed,jdSupport");return;}var bn=td.buyingNeed;if(!exactKeys(bn,bnk))e.push("meta.targetDecode.buyingNeed has invalid shape");else{var status=bn.status,ev=bn.evidence,evok=Array.isArray(ev)&&ev.length<=3;if(["confirmed","inferred","unknown"].indexOf(status)<0)e.push("meta.targetDecode.buyingNeed.status has invalid value");["statement","beneficiary","constraint","confirmingQuestion"].forEach(function(k){if(bn[k]!==null&&typeof bn[k]!=="string")e.push("meta.targetDecode.buyingNeed."+k+" has invalid type");});if(evok)ev.forEach(function(r){if(!exactKeys(r,["source","quote"])||["jd","user"].indexOf(r.source)<0||!nonempty(r.quote))evok=false;});if(!evok){e.push("meta.targetDecode.buyingNeed.evidence has invalid shape");ev=[];}if(containsResumeDoc(ev))e.push("meta.targetDecode must not embed resumeDoc");var evidenceBlob=ev.map(function(r){return r&&r.quote||"";}).join(" ");if(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/.test(evidenceBlob)||/(?:\+?\d[\d(). -]{7,}\d)/.test(evidenceBlob))e.push("meta.targetDecode must not contain contact PII");if(status==="unknown"&&!(bn.statement===""&&bn.beneficiary===null&&bn.constraint===null&&ev.length===0&&nonempty(bn.confirmingQuestion)))e.push("meta.targetDecode.buyingNeed unknown invariant failed");else if(status==="inferred"&&!(nonempty(bn.statement)&&ev.some(function(r){return r&&r.source==="jd";})&&nonempty(bn.confirmingQuestion)))e.push("meta.targetDecode.buyingNeed inferred invariant failed");else if(status==="confirmed"){var core=[bn.statement,bn.beneficiary,bn.constraint],source=ev.some(function(r){return r&&["jd","user"].indexOf(r.source)>=0&&core.every(function(p){return typeof p==="string"&&String(r.quote||"").toLowerCase().indexOf(p.toLowerCase())>=0;});});if(!(core.every(nonempty)&&bn.confirmingQuestion===null&&source))e.push("meta.targetDecode.buyingNeed confirmed invariant failed");}}
+ var js=td.jdSupport;if(!exactKeys(js,jdk)){e.push("meta.targetDecode.jdSupport has invalid shape");return;}if(!Array.isArray(js.nonNegotiables))e.push("meta.targetDecode.jdSupport.nonNegotiables must be an array");else js.nonNegotiables.forEach(function(r,i){if(!exactKeys(r,["need","status","itemIds"])||!nonempty(r.need)||["proven","confirm","absent"].indexOf(r.status)<0||!validItemIds(r.itemIds,ids))e.push("meta.targetDecode.jdSupport.nonNegotiables["+i+"] is invalid");});var cp=js.centralProblem;if(!exactKeys(cp,["status","itemIds"])||["strong","buried","weak","missing","unknown"].indexOf(cp&&cp.status)<0||!validItemIds(cp&&cp.itemIds,ids))e.push("meta.targetDecode.jdSupport.centralProblem is invalid");var df=js.differentiator;if(df!==null&&(!exactKeys(df,["statement","itemIds"])||!nonempty(df.statement)||!validItemIds(df.itemIds,ids)||!df.itemIds.length))e.push("meta.targetDecode.jdSupport.differentiator is invalid");var rp=js.smallestTruthfulRepair;if(rp!==null){var shape=exactKeys(rp,["itemId","action","instruction","truth"]),pair=shape&&((rp.truth==="confirmed"&&["keep","tighten","rewrite","collapse","split","move","expand","cut"].indexOf(rp.action)>=0)||(rp.truth==="needs-confirmation"&&rp.action==="confirm"&&String(rp.instruction||"").indexOf("?")>=0));if(!(shape&&!!ids[rp.itemId]&&nonempty(rp.instruction)&&pair))e.push("meta.targetDecode.jdSupport.smallestTruthfulRepair is invalid");}
+}
+function validateParseStatus(DATA,e){
+ var m=DATA.meta||{},ps=m.parseStatus,pek=["source","ref","observed"],claims=["parses cleanly","will parse","ats-readable"];
+ if(!exactKeys(ps,["state","affectsAts","evidence"])){e.push("meta.parseStatus must have exactly state,affectsAts,evidence");return;}
+ var state=ps.state,affects=ps.affectsAts,ev=ps.evidence;
+ if(["untested","tested"].indexOf(state)<0)e.push("meta.parseStatus.state has invalid value");
+ if(typeof affects!=="boolean")e.push("meta.parseStatus.affectsAts must be a boolean");
+ if(state==="untested"){if(affects!==false||ev!==null)e.push("meta.parseStatus untested invariant failed");}
+ else if(state==="tested"){if(!exactKeys(ev,pek)||["extraction-artifact","parser-command"].indexOf(ev&&ev.source)<0||!nonempty(ev&&ev.ref)||!nonempty(ev&&ev.observed))e.push("meta.parseStatus tested evidence invalid");}
+ var readers=m.readers,ats=(Array.isArray(readers)&&readers[0]&&typeof readers[0].evidence==="string")?readers[0].evidence:"",low=ats.toLowerCase();
+ if(state==="untested")claims.forEach(function(t){if(low.indexOf(t)>=0)e.push("meta.parseStatus untested but ATS evidence claims parser behavior: "+t);});
+ if(state==="tested"&&affects===true&&exactKeys(ev,pek)){var ref=typeof ev.ref==="string"?ev.ref:"";if(ref&&ats.indexOf(ref)<0)e.push("meta.parseStatus tested affectsAts requires the ATS reader evidence to cite the observed source");}
+}
+function validateRubric(DATA,e){
+ var m=DATA.meta||{},rk=["competency","grade","evidenceIds","gaps"],rub=DATA.rubric,pids=jdPostingIds(DATA),get=function(p){return String(p).split(".").reduce(function(o,k){return o==null?undefined:o[k];},DATA);};
+ if(!Array.isArray(rub)){e.push("rubric must be an array");return;}
+ if(m.mode!=="skillmatch"&&rub.length)e.push("rubric must be empty unless mode is skillmatch");
+ rub.forEach(function(r,i){
+  if(!keysWithin(r,rk,["bar","standing"])){e.push("rubric["+i+"] must have exactly competency,grade,evidenceIds,gaps");return;}
+  if(!nonempty(r.competency))e.push("rubric["+i+"] competency must be non-empty");
+  if(!Number.isInteger(r.grade)||r.grade<0||r.grade>5)e.push("rubric["+i+"] grade must be an integer 0-5");
+  if(!Array.isArray(r.evidenceIds)||!r.evidenceIds.length||!r.evidenceIds.every(function(p){return typeof p==="string"&&/^resumeDoc\./.test(p)&&get(p)!==undefined;}))e.push("rubric["+i+"] evidenceIds must be non-empty resumeDoc paths that resolve");
+  if(!Array.isArray(r.gaps)||!r.gaps.every(function(g){return typeof g==="string";}))e.push("rubric["+i+"] gaps must be an array of strings");
+  if("bar" in r)validateBar(r.bar,"rubric["+i+"] bar",pids,["requirement","level","range","sources"],e);
+  if("standing" in r){if(["meets","below","above","unprovable"].indexOf(r.standing)<0)e.push("rubric["+i+"] standing has invalid value");if(!("bar" in r))e.push("rubric["+i+"] standing requires a bar");}
+ });
+}
+function jdPostingIds(DATA){return (Array.isArray(DATA.jdSet)?DATA.jdSet:[]).filter(function(x){return x&&typeof x==="object"&&nonempty(x.postingId);}).map(function(x){return x.postingId;});}
+function validateBar(bar,label,pids,keys,e){
+ if(!exactKeys(bar,keys)){e.push(label+" must have exactly "+keys.join(","));return;}
+ if(!nonempty(bar.requirement)||bar.requirement.length>400)e.push(label+" requirement must be non-empty within 400 characters");
+ if(!(bar.level===null||(typeof bar.level==="string"&&bar.level.length<=120)))e.push(label+" level must be a string within 120 characters or null");
+ if(!(bar.range===null||(typeof bar.range==="string"&&bar.range.length<=160)))e.push(label+" range must be a string within 160 characters or null");
+ var s=bar.sources,sok=Array.isArray(s)&&s.length&&new Set(s.filter(function(x){return typeof x==="string";})).size===s.length&&s.every(function(x){return typeof x==="string"&&pids.indexOf(x)>=0;});
+ if(!sok)e.push(label+" sources must be unique postingIds that resolve in jdSet");
+ else if(bar.range!==null&&s.length<2)e.push(label+" range requires at least two sources");
+ if(!pids.length)e.push(label+" requires a non-empty jdSet");
+ if(keys.indexOf("question")>=0&&(!nonempty(bar.question)||bar.question.length>240))e.push(label+" question must be non-empty within 240 characters");
+}
+function validateJdSet(DATA,e){
+ if(!("jdSet" in DATA))return;
+ var jds=DATA.jdSet;
+ if(!Array.isArray(jds)){e.push("jdSet must be an array");return;}
+ var av=["leadership","ic","architect","forward-deployed","generalist"],sv=["inferred","confirmed"],seen=[];
+ jds.forEach(function(r,i){
+  if(!exactKeys(r,["postingId","label","archetype","archetypeStatus","experience"])){e.push("jdSet ["+i+"] must have exactly postingId,label,archetype,archetypeStatus,experience");return;}
+  var ref=nonempty(r.postingId)?r.postingId:i;
+  if(!nonempty(r.postingId)||r.postingId.length>80)e.push("jdSet "+ref+" postingId must be non-empty within 80 characters");
+  else if(seen.indexOf(r.postingId)>=0)e.push("duplicate jdSet postingId "+r.postingId);
+  else seen.push(r.postingId);
+  if(!nonempty(r.label)||r.label.length>120)e.push("jdSet "+ref+" label must be non-empty within 120 characters");
+  if(av.indexOf(r.archetype)<0)e.push("jdSet "+ref+" archetype has invalid value");
+  if(sv.indexOf(r.archetypeStatus)<0)e.push("jdSet "+ref+" archetypeStatus has invalid value");
+  if(!(r.experience===null||(typeof r.experience==="string"&&r.experience.length<=80)))e.push("jdSet "+ref+" experience must be a string within 80 characters or null");
+ });
+ var named=[];
+ (DATA.rubric||[]).forEach(function(r){if(r&&r.bar&&typeof r.bar==="object")(r.bar.sources||[]).forEach(function(s){if(named.indexOf(s)<0)named.push(s);});});
+ (DATA.openBars||[]).forEach(function(r){if(r&&typeof r==="object")(r.sources||[]).forEach(function(s){if(named.indexOf(s)<0)named.push(s);});});
+ if(named.length)seen.forEach(function(p){if(named.indexOf(p)<0)e.push("jdSet "+p+" is named by no bar");});
+}
+function validateOpenBars(DATA,e){
+ if(!("openBars" in DATA))return;
+ var obs=DATA.openBars,m=DATA.meta||{};
+ if(!Array.isArray(obs)){e.push("openBars must be an array");return;}
+ if(m.mode!=="skillmatch"&&obs.length)e.push("openBars must be empty unless mode is skillmatch");
+ var pids=jdPostingIds(DATA);
+ obs.forEach(function(r,i){validateBar(r,"openBars ["+i+"]",pids,["requirement","level","range","sources","question"],e);});
+ var seen=[],dupes=[];
+ (DATA.rubric||[]).forEach(function(r){if(r&&r.bar&&typeof r.bar==="object"&&typeof r.bar.requirement==="string"){if(seen.indexOf(r.bar.requirement)>=0)dupes.push(r.bar.requirement);else seen.push(r.bar.requirement);}});
+ obs.forEach(function(r){if(r&&typeof r==="object"&&typeof r.requirement==="string"){if(seen.indexOf(r.requirement)>=0)dupes.push(r.requirement);else seen.push(r.requirement);}});
+ dupes.forEach(function(q){e.push("duplicate bar requirement "+q);});
+}
+function validateResumeSections(DATA,e,ids){
+ var rs=DATA.resumeSections,rk=["sectionId","path","title","verdict","status","staleness","assessment"],vv=["strong","adequate","weak","unread"],sv=["open","done","ignore"],stv=["fresh","stale"];
+ if(!Array.isArray(rs)){e.push("resumeSections must be an array");return;}
+ var secIds={};
+ rs.forEach(function(s,i){
+  if(!exactKeys(s,rk)){e.push("resumeSection ["+i+"] must have exactly sectionId,path,title,verdict,status,staleness,assessment");return;}
+  var id=nonempty(s.sectionId)?s.sectionId:i;
+  if(!nonempty(s.sectionId))e.push("resumeSection ["+i+"] sectionId must be non-empty");
+  else if(secIds[s.sectionId])e.push("duplicate resumeSection sectionId "+s.sectionId);
+  else secIds[s.sectionId]=1;
+  if(typeof s.path!=="string"||s.path.indexOf("resumeDoc.")!==0||s.path.length>256)e.push("resumeSection "+id+" path must be a resumeDoc path within 256 characters");
+  if(!nonempty(s.title)||s.title.length>80)e.push("resumeSection "+id+" title must be non-empty within 80 characters");
+  if(vv.indexOf(s.verdict)<0)e.push("resumeSection "+id+" verdict has invalid value");
+  if(sv.indexOf(s.status)<0)e.push("resumeSection "+id+" status has invalid value");
+  if(stv.indexOf(s.staleness)<0)e.push("resumeSection "+id+" staleness has invalid value");
+  if(typeof s.assessment!=="string"||s.assessment.length>800)e.push("resumeSection "+id+" assessment must be a string within 800 characters");
+  if(s.staleness==="stale"&&s.verdict==="unread")e.push("resumeSection "+id+" stale requires an assessed verdict");
+  if(s.assessment===""&&s.verdict!=="unread")e.push("resumeSection "+id+" assessment must be non-empty unless unread");
+ });
+ (DATA.items||[]).forEach(function(it){if(!it||typeof it!=="object"||Array.isArray(it)||!("sectionId" in it))return;if(typeof it.sectionId!=="string"||!secIds[it.sectionId])e.push("item "+(it.n==null?"?":it.n)+" sectionId “"+it.sectionId+"” not in resumeSections");});
+}
+function strArr(v){return Array.isArray(v)&&v.every(function(x){return typeof x==="string";});}
+function validateLinkedinDoc(DATA,e){
+ if(!("linkedinDoc" in DATA))return;
+ var d=DATA.linkedinDoc,ok=["about","experience","extras","headline","skills"];
+ if(!d||typeof d!=="object"||Array.isArray(d)||!Object.keys(d).length){e.push("linkedinDoc must be a non-empty object");return;}
+ Object.keys(d).sort().forEach(function(k){if(ok.indexOf(k)<0)e.push("linkedinDoc has unknown key “"+k+"”");});
+ ["headline","about"].forEach(function(k){if((k in d)&&typeof d[k]!=="string")e.push("linkedinDoc."+k+" must be a string");});
+ if(("skills" in d)&&!strArr(d.skills))e.push("linkedinDoc.skills must be an array of strings");
+ if("experience" in d){if(!Array.isArray(d.experience))e.push("linkedinDoc.experience must be an array");else d.experience.forEach(function(x,i){var keys=x&&typeof x==="object"&&!Array.isArray(x)?Object.keys(x):null,allowed=keys&&keys.every(function(k){return ["org","role","dates","bullets"].indexOf(k)>=0;});if(!(allowed&&["org","role","dates"].every(function(k){return typeof x[k]==="string";})&&strArr(x.bullets)))e.push("linkedinDoc.experience "+i+" needs string org, role, dates and a bullets array of strings");});}
+ if("extras" in d){if(!Array.isArray(d.extras))e.push("linkedinDoc.extras must be an array");else d.extras.forEach(function(x,i){var keys=x&&typeof x==="object"&&!Array.isArray(x)?Object.keys(x).sort().join("|"):"";if(!(keys==="items|title"&&typeof x.title==="string"&&strArr(x.items)))e.push("linkedinDoc.extras "+i+" needs a string title and an items array of strings");});}
+}
+function validateCraft(DATA,e,ids){
+ var cr=DATA.craft,ck=["path","element","grade","bars","itemIds"],ev=["headline","summary","bullet","role-header","section","document","contact"],gv=["winning","competent","median","below-bar"],bk=["bar","grade","note"];
+ if(!("craft" in DATA))return;
+ if(!Array.isArray(cr)){e.push("craft must be an array");return;}
+ var paths={};
+ cr.forEach(function(c,i){
+  if(!exactKeys(c,ck)){e.push("craft ["+i+"] must have exactly path,element,grade,bars,itemIds");return;}
+  var id=nonempty(c.path)?c.path:i;
+  if(typeof c.path!=="string"||c.path.indexOf("resumeDoc.")!==0||c.path.length>256)e.push("craft "+id+" path must be a resumeDoc path within 256 characters");
+  else if(paths[c.path])e.push("duplicate craft path "+c.path);
+  else paths[c.path]=1;
+  if(ev.indexOf(c.element)<0)e.push("craft "+id+" element has invalid value");
+  if(gv.indexOf(c.grade)<0)e.push("craft "+id+" grade has invalid value");
+  if(!Array.isArray(c.bars)||!c.bars.length||c.bars.length>20)e.push("craft "+id+" bars must be a non-empty array within 20 entries");
+  else c.bars.forEach(function(b,j){
+   if(!exactKeys(b,bk)){e.push("craft "+id+" bar ["+j+"] must have exactly bar,grade,note");return;}
+   if(!nonempty(b.bar)||b.bar.length>80)e.push("craft "+id+" bar ["+j+"] bar must be non-empty within 80 characters");
+   if(gv.indexOf(b.grade)<0)e.push("craft "+id+" bar ["+j+"] grade has invalid value");
+   if(typeof b.note!=="string"||b.note.length>240)e.push("craft "+id+" bar ["+j+"] note must be a string within 240 characters");
+  });
+  if(!Array.isArray(c.itemIds)||!c.itemIds.every(function(v){return Number.isInteger(v)&&!!ids[v];}))e.push("craft "+id+" itemIds must resolve to existing items");
+  else if(c.grade==="winning"&&c.itemIds.length)e.push("craft "+id+" winning carries no itemIds");
+  else if((c.grade==="below-bar"||c.grade==="median")&&!c.itemIds.length)e.push("craft "+id+" "+c.grade+" needs at least one itemId");
+ });
+}
+function validateReport(DATA,C){
+ if(!DATA||typeof DATA!=="object"||Array.isArray(DATA))return["DATA root must be an object"];
+ var e=[],m=DATA&&DATA.meta&&typeof DATA.meta==="object"&&!Array.isArray(DATA.meta)?DATA.meta:{};
+ if(m.contractVersion!==C.version)e.push("built for contract "+(m.contractVersion||"‹none›")+", this report is "+C.version);
+ Object.keys(C.top||{}).forEach(function(k){var v=DATA[k],ok=C.top[k]==="array"?Array.isArray(v):(v&&typeof v==="object"&&!Array.isArray(v)&&Object.keys(v).length>0);if(!ok)e.push("DATA."+k+" must be "+C.top[k]+(v===undefined?" (island omits it)":" (wrong type)"));});
+ if(e.some(function(x){return x.indexOf("DATA.")===0;}))return e;
+ var sec={};(DATA.sections||[]).forEach(function(s){if(!s||typeof s.id!=="string"||!s.id)e.push("section id must be a non-empty string");else sec[s.id]=1;});
+ (DATA.items||[]).forEach(function(it){if(it&&("section" in it)&&typeof it.section!=="string")e.push("item "+(it.n==null?"?":it.n)+" section must be a string");});
+ (DATA.items||[]).forEach(function(it){if(!it||typeof it!=="object"||Array.isArray(it)){e.push("items holds a non-object entry");return;}(C.item.required||[]).forEach(function(k){if(!(k in it))e.push("item "+(it.n==null?"?":it.n)+" missing “"+k+"”");});if(typeof it.section==="string"&&it.section&&!sec[it.section])e.push("item "+(it.n==null?"?":it.n)+" section “"+it.section+"” not in sections");(Array.isArray(it.fields)?it.fields:[]).forEach(function(f){(C.item.field||[]).forEach(function(k){if(!f||typeof f!=="object"||!(k in f))e.push("item "+(it.n==null?"?":it.n)+" field entry missing “"+k+"”");});});var p=typeof it.section==="string"?(C.perSection||{})[it.section]:null;if(p&&p.rewriteWhen&&p.rewriteWhen.split("|").indexOf(it.verdict)>=0&&!(Array.isArray(it.rewrite)&&it.rewrite.length))e.push("item "+it.n+" verdict “"+it.verdict+"” needs rewrite[]");if(p)(p.needFields||[]).forEach(function(k){if(!(it.fields||[]).some(function(f){return f&&f.k===k;}))e.push("item "+it.n+" missing “"+k+"” field");});});
+ var rd=DATA.resumeDoc||{};(C.resumeDoc.required||[]).forEach(function(k){if(!rd[k])e.push("resumeDoc missing “"+k+"”");});(Array.isArray(rd.experience)?rd.experience:[]).forEach(function(r,i){(C.resumeDoc.experienceRow||[]).forEach(function(k){if(!r||!r[k])e.push("resumeDoc.experience["+i+"] missing “"+k+"”");});});
+ var modes=["quick-scan","standard","rewrite","skillmatch"],atsv=["fail","risky","weak-pass","pass"],sv=["no-call","maybe","call","urgent-call"],mv=["no","insufficient","interview","priority-interview"],st=["open","done","ignore"],uv=["crit","high","med","low","none"],ef=["decision","proof","risk","action","none"],ck=["itemId","path","lane","reader","atom","neighbor","evidence","truth","decisionEffect","suggestion","relatedIds","decisions","questions"].sort(),csk=["path","lane","reader","atom","neighbor","evidence","truth","decisionEffect","suggestion"],readerNames=["ATS","Recruiter","HR","Hiring manager","Technical reviewer"];
+ if(modes.indexOf(m.mode)<0)e.push("meta.mode must be quick-scan|standard|rewrite|skillmatch");var d=m.decision&&typeof m.decision==="object"?m.decision:{},g=d.gates&&typeof d.gates==="object"?d.gates:{};[["ats",atsv],["screener",sv],["manager",mv]].forEach(function(x){if(x[1].indexOf(g[x[0]])<0)e.push("meta.decision.gates."+x[0]+" has invalid value");});if(["yes","not yet","no"].indexOf(d.moveForward)<0)e.push("meta.decision.moveForward has invalid value");if(typeof d.reason!=="string"||!d.reason.trim())e.push("meta.decision.reason must be non-empty");if(d.urgencyQuote!==null&&d.urgencyQuote!==undefined&&(typeof d.urgencyQuote!=="string"||!d.urgencyQuote.trim()))e.push("meta.decision.urgencyQuote must be null or non-empty string");var validGates=atsv.indexOf(g.ats)>=0&&sv.indexOf(g.screener)>=0&&mv.indexOf(g.manager)>=0,ex=validGates?deriveDecision(g.ats,g.screener,g.manager,d.urgencyQuote):null;if(ex){if(d.mustTalk!==ex.mustTalk)e.push("meta.decision.mustTalk disagrees with gate rule");if(d.moveForward!==ex.moveForward)e.push("meta.decision.moveForward disagrees with gate rule");}var reason=typeof d.reason==="string"?d.reason:"",rl=reason.toLowerCase();if(reason&&ex&&((ex.decidingGate==="urgency"&&!(d.urgencyQuote&&reason.indexOf(d.urgencyQuote)>=0))||(ex.decidingGate!=="urgency"&&rl.indexOf(ex.decidingGate)<0)))e.push("meta.decision.reason must name the first deciding gate or quote urgency");var readers=m.readers;if(!Array.isArray(readers)||readers.length!==5)e.push("meta.readers must contain exactly 5 reader passes");else{if(readers.map(function(r){return r&&r.name;}).join("|")!==readerNames.join("|"))e.push("meta.readers must remain in funnel order");readers.forEach(function(r,i){if(!r||typeof r!=="object"||["verdict","evidence"].some(function(k){return typeof r[k]!=="string"||!r[k].trim();}))e.push("meta.readers["+i+"] needs verdict and evidence");});}
+ if(Array.isArray(DATA.getsAttention)&&DATA.getsAttention.length>3)e.push("getsAttention has more than 3 entries");var ids={},resume={},targets={};
+ (DATA.items||[]).forEach(function(it){if(it&&it.target!=null&&typeof it.target!=="string")e.push("item "+(it.n==null?"?":it.n)+" target must be a string");});
+ (DATA.items||[]).forEach(function(it){if(!it||typeof it!=="object"||Array.isArray(it))return;var n=it.n;if(!Number.isInteger(n))e.push("item n must be an integer, not boolean");else if(ids[n])e.push("duplicate item n "+n);else{ids[n]=1;if(it.section==="resume")resume[n]=1;}if(st.indexOf(it.status)<0)e.push("item "+(n==null?"?":n)+" status has invalid value");if(uv.indexOf(it.urgency)<0)e.push("item "+(n==null?"?":n)+" urgency has invalid value");if(("severity" in it)&&!(Number.isInteger(it.severity)&&it.severity>=1&&it.severity<=3))e.push("item "+(n==null?"?":n)+" severity must be 1|2|3");if(ef.indexOf(it.decisionEffect)<0)e.push("item "+(n==null?"?":n)+" decisionEffect has invalid value");if(it.decisionEffect==="none"&&["tighten","cut"].indexOf(it.verdict)<0)e.push("item "+(n==null?"?":n)+" decisionEffect none requires tighten|cut");var c=it.ctx&&typeof it.ctx==="object"&&!Array.isArray(it.ctx)?it.ctx:{};if(!it.ctx||typeof it.ctx!=="object"||Array.isArray(it.ctx))e.push("item "+(n==null?"?":n)+" ctx must be an object");if(Object.keys(c).sort().join("|")!==ck.join("|"))e.push("item "+(n==null?"?":n)+" ctx must have exactly 13 keys");if(c.itemId!==n)e.push("item "+(n==null?"?":n)+" ctx.itemId must equal n");if(c.decisionEffect!==it.decisionEffect)e.push("item "+(n==null?"?":n)+" ctx.decisionEffect must equal item");csk.forEach(function(k){if(typeof c[k]!=="string")e.push("item "+(n==null?"?":n)+" ctx."+k+" must be a string");});["relatedIds","decisions","questions"].forEach(function(k){var a=c[k],ok=Array.isArray(a)&&a.every(function(v){return k==="relatedIds"?Number.isInteger(v):typeof v==="string";});if(!ok)e.push("item "+(n==null?"?":n)+" ctx."+k+" has invalid type");});var contact=csk.map(function(k){return typeof c[k]==="string"?c[k]:"";}).join(" ");if(String(c.path||"").indexOf("resumeDoc.contact")===0||/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/.test(contact)||/(?:\+?\d[\d(). -]{7,}\d)/.test(contact))e.push("item "+(n==null?"?":n)+" ctx must not contain contact PII");var actionable=it.verdict!=="keep",p=it.prompt;if(actionable){if(typeof p!=="string"||!p.trim())e.push("item "+(n==null?"?":n)+" actionable prompt must be non-empty");else{var expect={"Item:":String(n),"Atom:":String(c.atom||""),"Evidence:":String(c.evidence||""),"Truth:":String(c.truth||""),"Decision effect:":String(it.decisionEffect)};var pl=["Item:","Atom:","Evidence:","Truth:","Decision effect:","Task:"],blk={},cur=null;p.split(/\n/).forEach(function(ln){var hit=null;pl.forEach(function(l){if(hit===null&&ln.indexOf(l)===0)hit=l;});if(hit!==null){cur=blk[hit]===undefined?hit:null;if(cur!==null)blk[cur]=ln.slice(hit.length);}else if(cur!==null)blk[cur]+="\n"+ln;});pl.forEach(function(l){var val=blk[l]===undefined?"":blk[l].trim();if(!val)e.push("item "+(n==null?"?":n)+" prompt missing "+l+" value");else if(expect[l]!==undefined&&val!==expect[l])e.push("item "+(n==null?"?":n)+" prompt "+l+" value disagrees with ctx");});}}if(it.target){if(targets[it.target])e.push("duplicate rewrite target "+it.target);targets[it.target]=1;}});
+ (DATA.items||[]).forEach(function(it){var c=it&&it.ctx,limits={path:256,lane:160,reader:80,atom:600,neighbor:600,evidence:800,truth:240,decisionEffect:20,suggestion:600};if(c&&typeof c==="object"){Object.keys(limits).forEach(function(k){if(typeof c[k]==="string"&&c[k].length>limits[k])e.push("item "+(it.n==null?"?":it.n)+" ctx."+k+" exceeds "+limits[k]+" characters");});["relatedIds","decisions","questions"].forEach(function(k){var a=c[k];if(Array.isArray(a)&&(a.length>20||(k!=="relatedIds"&&a.some(function(v){return typeof v==="string"&&v.length>400;}))))e.push("item "+(it.n==null?"?":it.n)+" ctx."+k+" exceeds capsule limits");});if(Object.keys(limits).some(function(k){return typeof c[k]==="string"&&containsResumeDoc(c[k]);})||["decisions","questions"].some(function(k){return Array.isArray(c[k])&&c[k].some(function(v){return typeof v==="string"&&containsResumeDoc(v);});}))e.push("item "+(it.n==null?"?":it.n)+" ctx must not embed resumeDoc");}});
+ var order=(DATA.sections||[]).map(function(s){return s.id;}).join("|"),allowed=["resume|donext|readers","resume|linkedin|donext|readers"];if(allowed.indexOf(order)<0)e.push("sections do not match canonical order for mode");(DATA.items||[]).forEach(function(it){if(it&&it.section==="linkedin"){var a=it.ctx&&it.ctx.relatedIds;if(!Array.isArray(a)||!a.length||!a.every(function(v){return !!resume[v];}))e.push("linkedin item "+(it.n==null?"?":it.n)+" needs related resume item IDs");}});
+ (DATA.outcomes||[]).forEach(function(o,i){var ok=["applications","callbacks","interviews","itemIds","note","resumeVersion","window"].join("|"),keys=o&&typeof o==="object"&&!Array.isArray(o)?Object.keys(o).sort().join("|"):"";if(keys!==ok){e.push("outcome "+i+" must have exactly 7 keys");return;}if(typeof o.resumeVersion!=="string"||!o.resumeVersion.trim())e.push("outcome "+i+" resumeVersion must be non-empty");if(!Array.isArray(o.itemIds)||!o.itemIds.length||!o.itemIds.every(Number.isInteger)||new Set(o.itemIds).size!==o.itemIds.length||!o.itemIds.every(function(v){return !!ids[v];}))e.push("outcome "+i+" itemIds must be unique existing integers");var w=o.window,iso=/^\d{4}-\d{2}-\d{2}$/,real=function(s){if(!iso.test(s))return false;var d=new Date(s+"T00:00:00Z");return !isNaN(d.getTime())&&d.toISOString().slice(0,10)===s;};if(!w||typeof w!=="object"||Array.isArray(w)||Object.keys(w).sort().join("|")!=="end|start"||!real(w.start)||!real(w.end)||w.start>w.end)e.push("outcome "+i+" window must be closed YYYY-MM-DD range");var a=o.applications,c=o.callbacks,v=o.interviews;if(![a,c,v].every(function(x){return Number.isInteger(x)&&x>=0;})||!(v<=c&&c<=a))e.push("outcome "+i+" counts must satisfy interviews <= callbacks <= applications");if(typeof o.note!=="string")e.push("outcome "+i+" note must be a string");else if(causalOutcomeClaim(o.note.trim()))e.push("outcome "+i+" note must not claim causation");});if(C.version==="2.4.0"){validateV21(DATA,e,ids);validateParseStatus(DATA,e);validateJdSet(DATA,e);validateRubric(DATA,e);validateOpenBars(DATA,e);validateResumeSections(DATA,e,ids);validateCraft(DATA,e,ids);validateLinkedinDoc(DATA,e);}return e;
+}
+function contextPayload(item){if(!item)throw Error("no item");return JSON.parse(JSON.stringify(item.ctx));}
+function conversePayload(item){return{instruction:"Discuss only this resume finding. Do not request or infer the full resume.",context:contextPayload(item)};}
+</script>
+
+<script>
+(function(){"use strict";
+var DATA=JSON.parse(document.getElementById("report-data").textContent),C=JSON.parse(document.getElementById("report-contract").textContent),errs=validateReport(DATA,C),m=DATA.meta||{},RID=m.reportId||"resume-report",IID="i-"+Math.random().toString(16).slice(2),byN={},CHANGES=[],SHOWALL=false,SEVON={"1":true,"2":true,"3":true},connected=false,ARTIFACT=null,BASE="http://localhost:8917",STATEKEY="resume-status:"+RID;(DATA.items||[]).forEach(function(x){byN[x.n]=x;});
+try{JSON.parse(localStorage.getItem(STATEKEY)||"{}");}catch(_e){localStorage.removeItem(STATEKEY);}/* disk-backed DATA is authoritative; localStorage is only a post-write cache */
+function persistStatus(){var s={};(DATA.items||[]).forEach(function(x){s[x.n]=x.status;});try{localStorage.setItem(STATEKEY,JSON.stringify(s));}catch(_e){}}
+function esc(v){return String(v==null?"":v).replace(/[&<>\"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+function md(v){return esc(v).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");}
+function clone(v){return JSON.parse(JSON.stringify(v));}function toast(s){var t=document.getElementById("toast");t.textContent=s;t.style.display="block";setTimeout(function(){t.style.display="none";},1800);}function pathGet(root,path){return String(path).split(".").reduce(function(o,k){return o==null?undefined:o[k];},root);}function pathSet(root,path,val){var p=String(path).split("."),o=root;for(var i=0;i<p.length-1;i++)o=o[p[i]];o[p[p.length-1]]=val;}
+if(errs.length){document.body.innerHTML='<main class="wrap"><h1>This report cannot render</h1><p>Contract validation failed; nothing was partially painted.</p><ul>'+errs.map(function(e){return'<li>'+esc(e)+'</li>';}).join("")+'</ul></main>';return;}
+function readers(){return(m.readers||[]).map(function(r){return'<div class="reader"><b>'+esc(r.name)+'</b><div>'+esc(r.verdict)+'</div><small>'+esc(r.evidence)+'</small></div>';}).join("");}
+function targetDecode(){var t=m.targetDecode||{},b=t.buyingNeed||{},j=t.jdSupport||{},proof=(b.evidence||[]).map(function(x){return'“'+esc(x.quote)+'”';}).join('<br>'),needs=(j.nonNegotiables||[]).map(function(x){return esc(x.need)+': '+esc(x.status);}).join('<br>')||'None identified',diff=j.differentiator?esc(j.differentiator.statement):'None supported yet',repair=j.smallestTruthfulRepair?esc(j.smallestTruthfulRepair.instruction):'No change recommended';return'<section class="target"><h2>Why this role exists</h2><div class="targetgrid"><div><b>Business need</b><p>'+esc(b.statement||'Not clear from this job description yet.')+'</p><small>'+esc(b.status||'unknown')+(b.confirmingQuestion?' · '+esc(b.confirmingQuestion):'')+'</small></div><div><b>What the role requires</b><p>'+needs+'</p><small>Current support: '+esc((j.centralProblem||{}).status||'unknown')+'</small></div><div><b>Evidence used</b><p>'+(proof||'No direct wording supplied.')+'</p></div><div><b>Best next move</b><p>'+repair+'</p><small>Distinctive evidence: '+diff+'</small></div></div></section>';}
+function itemRow(it){return'<tr class="item" data-item="'+it.n+'" data-status="'+esc(it.status)+'"><td class="c-n">'+it.n+'</td><td class="c-status"><button class="tri" data-n="'+it.n+'" data-st="'+esc(it.status)+'" title="'+esc(it.status)+' — click to cycle" aria-label="Change status for item '+it.n+'"></button></td><td class="c-el"><span class="sevtag t'+(it.severity||2)+'">'+({1:"rejection",2:"better chance",3:"cosmetic"}[it.severity||2])+'</span><b>'+esc(it.title)+'</b><div class="quote">'+esc(it.quoted||it.ctx.atom)+'</div></td><td>'+esc(it.reason)+'</td><td class="c-verdict"><span class="urgency '+esc(it.urgency)+'"></span>'+esc(it.verdict)+'</td><td>'+esc(it.suggestion)+'</td><td class="c-act"><div class="actions"><button data-expand="'+it.n+'">Expand</button><button data-edit="'+it.n+'">Edit</button><button data-copy="'+it.n+'">Copy prompt</button></div></td></tr><tr class="detail" data-detail="'+it.n+'"><td colspan="7"><div class="detailbox">'+detail(it)+'</div></td></tr>';}
+function detail(it){var f=(it.fields||[]).map(function(x){return'<div class="field"><b>'+esc(x.k)+'</b><div>'+x.v+'</div></div>';}).join("");var rw=(it.rewrite||[]).map(function(x,i){return'<div class="field"><b>'+esc(x.lab)+'</b><p>'+esc(x.txt)+'</p><button data-accept="'+it.n+'" data-index="'+i+'">Accept rewrite</button></div>';}).join("");return'<div class="fields">'+f+rw+'</div><pre>'+esc(it.prompt||"")+'</pre><div class="error" id="error-'+it.n+'" role="alert"></div>';}
+function sectionHeader(sec){var badge=sec.staleness==="stale"?'<span class="stale-badge">stale — re-read pending</span>':'';return'<tr class="section wholeread'+(sec.staleness==="stale"?' is-stale':'')+'"><td colspan="7"><div class="wr-head"><b>'+esc(sec.title)+'</b><span class="wr-verdict v-'+esc(sec.verdict)+'">'+esc(sec.verdict)+'</span><span class="wr-status">'+esc(sec.status)+'</span>'+badge+'</div></td></tr>';}
+function render(){var d=m.decision,g=d.gates,visible=DATA.items.filter(function(x){return SEVON[String(x.severity||2)];}),h='<section class="decision"><h1>MOVE FORWARD: '+esc(d.moveForward)+' — '+esc(d.reason)+'</h1><div class="gates"><span>Must-Talk '+d.mustTalk+'</span><span>ATS '+esc(g.ats)+'</span><span>Screener '+esc(g.screener)+'</span><span>Manager '+esc(g.manager)+'</span></div></section>'+targetDecode()+'<section class="readers"><h2>Five-reader evidence</h2><p class="muted">Funnel order: ATS → recruiter → HR → hiring manager → technical reviewer.</p><div class="readergrid">'+readers()+'</div></section>';if(DATA.getsAttention.length)h+='<section class="attention"><h2>Gets Attention</h2>'+DATA.getsAttention.map(function(x){return'<blockquote>“'+esc(x.q)+'”<div class="muted">'+esc(x.n)+'</div></blockquote>';}).join("")+'</section>';var sc={1:0,2:0,3:0};DATA.items.forEach(function(x){var t=x.severity||2;sc[t]=(sc[t]||0)+1;});var sevlabels={1:"Likely rejection",2:"Better chance",3:"Cosmetic"};var chips=[1,2,3].map(function(t){return '<button class="sevchip t'+t+(SEVON[t]?' on':'')+'" data-sev="'+t+'" aria-pressed="'+(SEVON[t]?'true':'false')+'">'+sevlabels[t]+' ('+(sc[t]||0)+')</button>';}).join("");h+='<section class="observations"><h2>Findings</h2><div class="sevfilter">'+chips+'</div></section>';if(!visible.length)h+='<p class="muted">No findings at the selected levels — adjust the filters above.</p>';h+='<table><thead><tr><th>n</th><th>status</th><th>element</th><th>reason</th><th>verdict</th><th>suggestion</th><th>actions</th></tr></thead><tbody>';var groups=(DATA.resumeSections&&DATA.resumeSections.length)?DATA.resumeSections.map(function(sec){return{header:sectionHeader(sec),rows:visible.filter(function(x){return x.sectionId===sec.sectionId;}).sort(function(a,b){return a.n-b.n;})};}):DATA.sections.map(function(s){return{header:'<tr class="section"><td colspan="7">'+esc(s.title)+'</td></tr>',rows:visible.filter(function(x){return x.section===s.id;}).sort(function(a,b){return a.n-b.n;})};});groups.forEach(function(gp){if(gp.rows.length){h+=gp.header;gp.rows.forEach(function(x){h+=itemRow(x);});}});h+='</tbody></table>';if(DATA.outcomes.length)h+='<section class="outcomes"><h2>Outcome observations</h2>'+DATA.outcomes.map(function(o){var its=o.itemIds.map(function(n){return byN[n];}).filter(Boolean),effects=Array.from(new Set(its.map(function(x){return x.decisionEffect;}))),changes=its.map(function(x){return'#'+x.n+' '+x.suggestion;}).join('; ');return'<p><b>before:</b> '+esc(o.resumeVersion)+'<br><b>smallest change:</b> '+esc(changes)+'<br><b>decision effect:</b> '+esc(effects.join(', '))+'<br><b>observed after, not attributed to</b> · '+esc(o.window.start)+'–'+esc(o.window.end)+' · '+o.applications+' applications / '+o.callbacks+' callbacks / '+o.interviews+' interviews<br>'+esc(o.note)+'</p>';}).join("")+'</section>';document.getElementById("app").innerHTML=h;bind();}
+function renderResume(){var d=DATA.resumeDoc,h='<h1>'+esc(d.name)+'</h1><h2>'+md(d.headline)+'</h2><p>'+md(d.summary)+'</p>';(d.experience||[]).forEach(function(x){h+='<div class="preview-exp"><b>'+esc(x.role)+' · '+esc(x.org)+'</b><div>'+esc(x.dates)+'</div><ul>'+x.bullets.map(function(b){return'<li>'+md(b)+'</li>';}).join("")+'</ul></div>';});document.getElementById("resume").innerHTML=h;}
+function renderLinkedin(){var d=DATA.linkedinDoc,el=document.getElementById("linkedin"),btn=document.getElementById("linkedinMode");if(!d){el.innerHTML="";btn.classList.add("hidden");return;}btn.classList.remove("hidden");var h='<h1>LinkedIn</h1><p class="muted">The profile as supplied. Nothing here is on the résumé.</p>';if(d.headline)h+='<p><b>'+md(d.headline)+'</b></p>';if(d.about)h+='<p>'+md(d.about)+'</p>';(d.experience||[]).forEach(function(x){h+='<div class="preview-exp"><b>'+esc(x.role)+' · '+esc(x.org)+'</b><div>'+esc(x.dates)+'</div><ul>'+(x.bullets||[]).map(function(b){return'<li>'+md(b)+'</li>';}).join("")+'</ul></div>';});if(strArr(d.skills)&&d.skills.length)h+='<p class="muted">'+d.skills.map(esc).join(" · ")+'</p>';(d.extras||[]).forEach(function(x){h+='<p><b>'+esc(x.title)+'</b> — '+(x.items||[]).map(md).join("; ")+'</p>';});el.innerHTML=h;}
+function evText(v){if(typeof v==="string")return v;if(v&&typeof v==="object"&&!Array.isArray(v)&&typeof v.label==="string"&&Array.isArray(v.items))return v.label+": "+v.items.join(", ");if(Array.isArray(v))return v.join(", ");return v==null?"":String(v);}
+function jdLabel(p){var j=(DATA.jdSet||[]).filter(function(x){return x&&x.postingId===p;})[0];return j?j.label:p;}
+function jdCounts(){var jds=DATA.jdSet||[];if(!jds.length)return"";var arch=[],exp=[];jds.forEach(function(j){if(arch.indexOf(j.archetype)<0)arch.push(j.archetype);if(j.experience!=null&&exp.indexOf(j.experience)<0)exp.push(j.experience);});var every=(DATA.rubric||[]).filter(function(r){return r.bar&&(r.bar.sources||[]).length===jds.length;}).length;return'<p class="muted">'+jds.length+' posting'+(jds.length===1?'':'s')+' · '+arch.length+' archetype'+(arch.length===1?'':'s')+' ('+arch.map(esc).join(", ")+') · '+every+' requirement'+(every===1?'':'s')+' named by every posting'+(exp.length?' · stated experience: '+exp.map(esc).join(" / "):'')+'</p>';}
+function barCell(bar){if(!bar)return'<span class="muted">not named by any posting</span>';var m=(DATA.jdSet||[]).length,out='<div class="quote">“'+esc(bar.requirement)+'”</div><div class="muted">'+bar.sources.length+' of '+m+' · '+bar.sources.map(function(s){return esc(jdLabel(s));}).join(", ")+'</div>';if(bar.level)out+='<div class="muted">bar: '+esc(bar.level)+'</div>';if(bar.range)out+='<div class="muted">range: '+esc(bar.range)+'</div>';return out;}
+function rubricGapParts(r){var next="",why=[];(r.gaps||[]).forEach(function(g){if(!next&&/^To reach\b/i.test(g))next=g;else why.push(g);});return{why:why.join(" "),next:next};}
+function rubricRow(r,i){var ev=(r.evidenceIds||[]).map(function(p){var v=pathGet(DATA,p);return'<div class="quote">“'+esc(evText(v))+'”</div>';}).join(""),p=rubricGapParts(r),st=r.standing?'<span class="cgrade g-'+esc(r.standing)+'">'+esc(r.standing)+'</span>':'<span class="muted">—</span>';if(rubricStale(r))st+='<div class="muted">regrade</div>';
+ return'<tr><td><b>'+esc(r.competency)+'</b></td><td class="c-num">'+esc(r.grade)+' / 5</td><td>'+st+'</td><td>'+(p.why?esc(p.why):'<span class="muted">—</span>')+'</td><td>'+(p.next?esc(p.next):'<span class="muted">—</span>')+'</td><td class="c-act"><div class="actions"><button data-rdet="'+i+'">Detail</button><button data-rcopy="'+i+'">Copy prompt</button></div></td></tr>'
+ +'<tr class="rdetail" data-rrow="'+i+'" hidden><td colspan="6"><div class="rdetail-in"><div><div class="rdetail-h">Bar</div>'+barCell(r.bar)+'</div><div><div class="rdetail-h">Evidence</div>'+(ev||'<span class="muted">no applicant evidence</span>')+'</div></div></td></tr>';}
+function rubricAt(i){var r=(DATA.rubric||[])[i];if(!r)throw Error("no rubric row "+i);return r;}
+function samePath(a,b){return a===b||a.indexOf(b+".")===0||b.indexOf(a+".")===0;}
+function writtenPaths(){var out=[];CHANGES.forEach(function(c){if((c.verb==="patchResume"||c.verb==="patchLinkedin")&&typeof c.args[0]==="string")out.push(c.args[0]);else if(c.verb==="acceptRewrite"){var x=byN[c.args[0]];if(x&&typeof x.target==="string")out.push(x.target);}});return out;}
+function rubricStale(r){var w=writtenPaths();return (r.evidenceIds||[]).some(function(p){return w.some(function(q){return samePath(p,q);});});}
+function rubricItems(r){var paths=r.evidenceIds||[],seen={},direct=[],linked=[];(DATA.items||[]).forEach(function(it){var p=it.ctx&&it.ctx.path;if(typeof p!=="string"||seen[it.n])return;if(!paths.some(function(q){return samePath(p,q);}))return;seen[it.n]=1;direct.push({n:it.n,section:it.section,title:it.title});});direct.forEach(function(d){(byN[d.n].ctx.relatedIds||[]).forEach(function(rn){var rel=byN[rn];if(!rel||seen[rn]||rel.section==="resume")return;seen[rn]=1;linked.push({n:rel.n,section:rel.section,title:rel.title});});});return direct.concat(linked).slice(0,12);}
+function rubricPayload(i){var r=rubricAt(i);return{rubricIndex:i,competency:r.competency,grade:r.grade,standing:r.standing==null?null:r.standing,bar:r.bar?clone(r.bar):null,gaps:clone(r.gaps||[]),evidence:(r.evidenceIds||[]).map(function(p){return{path:p,text:evText(pathGet(DATA,p))};}),relatedItems:rubricItems(r),stale:rubricStale(r)};}
+function rubricConverse(i){return{instruction:"Discuss only this competency. Improve it by rewriting a résumé line it cites: call patchResume(path,text) with a path from evidence[]. Never set the grade — a grade moves only when the rewritten line proves it. "+(DATA.linkedinDoc?"The same claim on LinkedIn is rewritten with patchLinkedin(path,text) against a linkedinDoc.* path.":"Findings in relatedItems with section linkedin are edited with updateItem; this report carries no LinkedIn document to patch."),context:rubricPayload(i)};}
+function rubricPrompt(i){var c=rubricPayload(i),m=(DATA.jdSet||[]).length,L=[];L.push("Competency: "+c.competency);L.push("Grade: "+c.grade+" / 5");L.push("Bar: "+(c.bar?c.bar.requirement+(c.bar.level?" | level: "+c.bar.level:"")+" | named by "+c.bar.sources.length+" of "+m:"not named by any posting"));L.push("Standing: "+(c.standing||"—"));L.push("Gaps:");c.gaps.forEach(function(g){L.push("- "+g);});L.push("Evidence:");c.evidence.forEach(function(e){L.push("- "+e.path+" — \""+e.text+"\"");});if(c.relatedItems.length){L.push("Related findings:");c.relatedItems.forEach(function(x){L.push("- item "+x.n+" ("+x.section+") "+x.title);});}L.push("Task: rewrite one cited line so the competency is proved at the next level, using only facts already on the page or supplied by me. Write it with patchResume on that line's path.");return L.join("\n");}
+function renderRubric(){var rub=DATA.rubric||[],ob=DATA.openBars||[],jds=DATA.jdSet||[],el=document.getElementById("rubric");if(!rub.length){el.innerHTML='<div class="wrap"><h1>Skill rubric</h1><p class="muted">This report has no skill rubric.</p></div>';return;}
+ var rows="";
+ if(jds.length){var counts=[];rub.forEach(function(r){var n=r.bar?r.bar.sources.length:0;if(counts.indexOf(n)<0)counts.push(n);});counts.sort(function(a,b){return b-a;});
+  counts.forEach(function(n){var group=rub.filter(function(r){return (r.bar?r.bar.sources.length:0)===n;});if(!group.length)return;rows+='<tr class="section"><td colspan="6">'+(n?'named by '+n+' of '+jds.length:'not named by any posting')+' ('+group.length+')</td></tr>';group.forEach(function(r){rows+=rubricRow(r,rub.indexOf(r));});});
+  if(ob.length){rows+='<tr class="section"><td colspan="6">open bars ('+ob.length+')</td></tr>';ob.forEach(function(o){rows+='<tr><td><b>'+esc(o.requirement)+'</b></td><td class="c-num"><span class="muted">ungraded</span></td><td><span class="muted">—</span></td><td><span class="muted">no applicant evidence</span></td><td>'+esc(o.question)+'</td><td class="c-act"></td></tr>';});}
+ }else{rub.forEach(function(r,i){rows+=rubricRow(r,i);});}
+ el.innerHTML='<div class="wrap"><h1>Skill rubric</h1><p class="muted">Demonstrated-skill grades (0–5). Evidence resolves to résumé lines; grades never move the decision until confirmed. Copy a row\'s prompt to work it in chat — the rewrite lands on the résumé line the row cites.</p>'+jdCounts()+'<table class="rubric"><thead><tr><th>Competency</th><th>Grade</th><th>Standing</th><th>Why</th><th>Next rung</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';el.querySelectorAll("[data-rcopy]").forEach(function(b){b.onclick=function(){copy(rubricPrompt(+b.dataset.rcopy),"rubric prompt copied");};});el.querySelectorAll("[data-rdet]").forEach(function(b){b.onclick=function(){var d=el.querySelector('.rdetail[data-rrow="'+b.dataset.rdet+'"]');if(!d)return;d.hidden=!d.hidden;b.textContent=d.hidden?"Detail":"Hide";};});}
+function renderCraft(){var cr=DATA.craft||[],el=document.getElementById("craft"),btn=document.getElementById("craftMode");if(!cr.length){el.innerHTML="";btn.classList.add("hidden");return;}btn.classList.remove("hidden");var order=["below-bar","median","competent","winning"],rows="";order.forEach(function(gd){var group=cr.filter(function(c){return c.grade===gd;});if(!group.length)return;rows+='<tr class="section"><td colspan="4">'+esc(gd)+' ('+group.length+')</td></tr>';group.forEach(function(c){var bars=(c.bars||[]).map(function(b){return'<li><b>'+esc(b.bar)+'</b> · '+esc(b.grade)+'<div class="quote">'+esc(b.note)+'</div></li>';}).join("");rows+='<tr><td class="c-path"><b>'+esc(c.path)+'</b></td><td>'+esc(c.element)+'</td><td><span class="cgrade g-'+esc(c.grade)+'">'+esc(c.grade)+'</span></td><td><ul>'+bars+'</ul></td></tr>';});});el.innerHTML='<div class="wrap"><h1>Craft</h1><p class="muted">Is this winning? Every graded element, worst first. Each grade names the bar it was measured against and quotes the wording it judged.</p><table><thead><tr><th>Element</th><th>Type</th><th>Grade</th><th>Bars</th></tr></thead><tbody>'+rows+'</tbody></table></div>';}
+function ctx(n){var it=byN[n];if(!it)throw Error("no item "+n);return contextPayload(it);}function envelope(n){var it=byN[n];if(!it)throw Error("no item "+n);return conversePayload(it);}
+function bridgeCall(verb,args,n){if(!connected){fail(n,"A bridge owning this report is required for durable changes.");return Promise.reject(Error("bridge offline"));}pending(n,true);return fetch(BASE+"/command",{method:"POST",body:JSON.stringify({to:RID,verb:verb,args:args,artifact:ARTIFACT})}).then(function(r){return r.json();}).then(function(o){if(!o.ok)throw Error(o.error||"bridge rejected change");return o;}).catch(function(e){fail(n,e.message);throw e;}).finally(function(){pending(n,false);});}
+function pending(n,on){var row=document.querySelector('[data-item="'+n+'"]');if(row)row.querySelectorAll("button").forEach(function(b){b.disabled=on;});var el=document.getElementById("error-"+n);if(el){el.className=on?"error saving":"error";el.textContent=on?"saving":"";}}
+function fail(n,msg){var el=document.getElementById("error-"+n);if(el)el.textContent=msg;toast(msg);}function edit(n){var it=byN[n],box=document.querySelector('[data-detail="'+n+'"] .detailbox'),vals={reason:it.reason,suggestion:it.suggestion,verdict:it.verdict,prompt:it.prompt||"",rewrite:JSON.stringify(it.rewrite||[],null,2),decisions:(it.ctx.decisions||[]).join("\n"),questions:(it.ctx.questions||[]).join("\n")};box.innerHTML='<form class="editor" data-form="'+n+'"><label>Reason<textarea name="reason">'+esc(vals.reason)+'</textarea></label><label>Suggestion<textarea name="suggestion">'+esc(vals.suggestion)+'</textarea></label><label>Verdict<input name="verdict" value="'+esc(vals.verdict)+'"></label><label class="wide">Prompt<textarea name="prompt">'+esc(vals.prompt)+'</textarea></label><label class="wide">Rewrite options (JSON)<textarea name="rewrite">'+esc(vals.rewrite)+'</textarea></label><label>Decisions<textarea name="decisions">'+esc(vals.decisions)+'</textarea></label><label>Questions<textarea name="questions">'+esc(vals.questions)+'</textarea></label><div class="wide"><button type="submit">Save</button> <button type="button" data-cancel="'+n+'">Cancel</button></div><div class="error wide" id="error-'+n+'" role="alert"></div></form>';box.querySelector("textarea").focus();box.querySelector("form").onsubmit=function(ev){ev.preventDefault();var fd=new FormData(ev.target),rw;try{rw=JSON.parse(String(fd.get("rewrite")));if(!Array.isArray(rw))throw Error("rewrite must be a JSON array");}catch(e){fail(n,"Rewrite options: "+e.message);return;}var p={reason:fd.get("reason"),suggestion:fd.get("suggestion"),verdict:fd.get("verdict"),prompt:fd.get("prompt"),rewrite:rw,decisions:String(fd.get("decisions")).split(/\n/).filter(Boolean),questions:String(fd.get("questions")).split(/\n/).filter(Boolean)};bridgeCall("updateItem",[n,p],n);};box.querySelector("[data-cancel]").onclick=function(){box.innerHTML=detail(it);bind();document.querySelector('[data-edit="'+n+'"]').focus();};}
+function bind(){document.querySelectorAll("[data-sev]").forEach(function(b){b.onclick=function(){var t=b.getAttribute("data-sev");SEVON[t]=!SEVON[t];render();};});document.querySelectorAll("[data-expand]").forEach(function(b){b.onclick=function(){document.querySelector('[data-detail="'+b.dataset.expand+'"]').classList.toggle("open");};});document.querySelectorAll("[data-edit]").forEach(function(b){b.onclick=function(){var n=+b.dataset.edit,det=document.querySelector('[data-detail="'+n+'"]');det.classList.add("open");edit(n);};});document.querySelectorAll("[data-copy]").forEach(function(b){b.onclick=function(){copy(byN[+b.dataset.copy].prompt||"","prompt copied");};});document.querySelectorAll("[data-accept]").forEach(function(b){b.onclick=function(){bridgeCall("acceptRewrite",[+b.dataset.accept,+b.dataset.index],+b.dataset.accept);};});document.querySelectorAll(".tri").forEach(function(b){b.onclick=function(){var n=+b.dataset.n,it=byN[n],states=["open","done","ignore"],next=states[(states.indexOf(it.status)+1)%3];bridgeCall("setStatus",[n,next],n);};});}
+function markSectionStale(n){var it=byN[n];if(!it||typeof it.sectionId!=="string")return;var s=(DATA.resumeSections||[]).filter(function(z){return z.sectionId===it.sectionId;})[0];if(s&&s.verdict!=="unread")s.staleness="stale";}
+function applyLocal(verb,a){if(verb==="setStatus"){byN[a[0]].status=a[1];persistStatus();}else if(verb==="updateItem"){var it=byN[a[0]],p=a[1];Object.keys(p).forEach(function(k){if(k==="decisions"||k==="questions")it.ctx[k]=clone(p[k]);else it[k]=clone(p[k]);});markSectionStale(a[0]);}else if(verb==="acceptRewrite"){var x=byN[a[0]],i=a[1]==null?0:a[1];pathSet(DATA,x.target,x.rewrite[i].txt);x.ctx.decisions.push("accepted-rewrite:"+i);x.status="done";markSectionStale(a[0]);persistStatus();}else if(verb==="rereadSection"){var sec=(DATA.resumeSections||[]).filter(function(z){return z.sectionId===a[0];})[0];if(sec){var pt=a[1]||{};["verdict","status","assessment"].forEach(function(k){if(pt&&k in pt)sec[k]=clone(pt[k]);});sec.staleness="fresh";}}else if(verb==="patchResume"||verb==="patchLinkedin")pathSet(DATA,a[0],a[1]);CHANGES.push({verb:verb,args:clone(a)});render();renderResume();renderLinkedin();renderRubric();if(Number.isInteger(a[0])){var f=document.querySelector(verb==="setStatus"?'.status[data-n="'+a[0]+'"]':'[data-edit="'+a[0]+'"]');if(f)f.focus();}return true;}
+var VERBS=["hello","getState","exportData","setStatus","patchResume","patchLinkedin","applyRewrite","listChanges","getItem","updateItem","acceptRewrite","rereadSection","getContext","listRubric","getRubricContext"];
+function normArgs(v,a){if(Array.isArray(a))return a;if(!a||typeof a!=="object")return[];if(v==="setStatus")return[a.n,a.status];if(v==="updateItem")return[a.n,a.patch];if(v==="acceptRewrite"||v==="applyRewrite")return[a.n,a.index];if(v==="rereadSection")return[a.sectionId,a.patch];if(v==="patchResume"||v==="patchLinkedin")return[a.path,a.text];if(v==="getContext"||v==="getItem")return[a.n];if(v==="getRubricContext")return[a.i==null?a.rubricIndex:a.i];return[];}
+window.AGUIrun=function(c){if(!c||VERBS.indexOf(c.verb)<0)return{ok:false,error:"unknown verb: "+(c&&c.verb)};var v=c.verb,a=normArgs(v,c.args);try{if(v==="hello")return{ok:true,result:{reportId:RID,instanceId:IID,name:m.name,role:m.role,mode:m.mode,verbs:VERBS.slice()}};if(v==="getState")return{ok:true,result:{reportId:RID,instanceId:IID,meta:clone(m),items:DATA.items.map(function(x){return{n:x.n,status:x.status,verdict:x.verdict};}),resumeDoc:clone(DATA.resumeDoc)}};if(v==="exportData")return{ok:true,result:clone(DATA)};if(v==="getContext")return{ok:true,result:ctx(a[0])};if(v==="listRubric")return{ok:true,result:(DATA.rubric||[]).map(function(r,i){return{i:i,competency:r.competency,grade:r.grade,standing:r.standing==null?null:r.standing,sources:r.bar?r.bar.sources.slice():[],stale:rubricStale(r)};})};if(v==="getRubricContext")return{ok:true,result:rubricConverse(a[0])};if(v==="getItem")return byN[a[0]]?{ok:true,result:clone(byN[a[0]])}:{ok:false,error:"no item "+a[0]};if(v==="listChanges")return{ok:true,result:clone(CHANGES)};if(v==="applyRewrite")v="acceptRewrite";if(v==="patchLinkedin"&&!DATA.linkedinDoc)return{ok:false,error:"no LinkedIn document in this report"};if(["setStatus","updateItem","acceptRewrite","rereadSection","patchResume","patchLinkedin"].indexOf(v)>=0){if(!applyLocal(v,a))return{ok:false,error:"apply failed"};return{ok:true,result:true};}return{ok:false,error:"not implemented"};}catch(e){return{ok:false,error:e.message};}};
+var ES=null,reconnectT=null;
+function setBridge(t){var el=document.getElementById("bridgeState");if(el.textContent!==t)el.textContent=t;}
+function connect(){fetch(BASE+"/heartbeat").then(function(r){return r.json();}).then(function(h){var local=location.protocol==="file:"?decodeURIComponent(location.pathname):(location.origin===BASE?h.report:null);ARTIFACT=local;connected=h.alive&&!!h.report&&h.reportId===RID&&local===h.report;setBridge(connected?"bridge owns report":h.report?"bridge owns another report":"bridge has no report");if(connected)events();else if(ES){ES.close();ES=null;}}).catch(function(){connected=false;ARTIFACT=null;if(ES){ES.close();ES=null;}setBridge("bridge offline");});}
+function events(){if(ES)return;var name="resume:"+RID+":"+IID+":"+encodeURIComponent(ARTIFACT),calls={};ES=new EventSource(BASE+"/events?name="+encodeURIComponent(name)+"&wasDefault=false");ES.onmessage=function(ev){var x=JSON.parse(ev.data),id=x.tool_call_id;if(x.type==="TOOL_CALL_ARGS")calls[id]=(calls[id]||"")+x.delta;if(x.type==="TOOL_CALL_END"){var q=JSON.parse(calls[id]||"{}"),res=window.AGUIrun({verb:q.command,args:q.params});fetch(BASE+"/result",{method:"POST",body:JSON.stringify({tool_call_id:id,result:res})});delete calls[id];}};ES.onerror=function(){if(ES){ES.close();ES=null;}connected=false;setBridge("bridge reconnecting");if(!reconnectT)reconnectT=setTimeout(function(){reconnectT=null;connect();},3000);};}
+function copy(s,msg){if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(s).then(function(){toast(msg);});else{var t=document.createElement("textarea");t.value=s;document.body.appendChild(t);t.select();document.execCommand("copy");t.remove();toast(msg);}}
+function showView(id){["report","resume","linkedin","rubric","craft"].forEach(function(v){document.getElementById(v).style.display=v===id?"block":"none";});}
+function syncChrome(){try{var nav=document.querySelector(".top"),r=document.documentElement;if(nav)r.style.setProperty("--navh",Math.ceil(nav.getBoundingClientRect().height)+"px");var th=document.querySelector("table thead th");if(th)r.style.setProperty("--theadh",Math.ceil(th.getBoundingClientRect().height)+"px");}catch(e){}}
+window.addEventListener("resize",syncChrome);
+function setMode(id){["reportMode","resumeMode","linkedinMode","rubricMode","craftMode"].forEach(function(x){document.getElementById(x).classList.toggle("active",x===id);});try{window.scrollTo(0,0);}catch(e){}syncChrome();}document.getElementById("reportMode").onclick=function(){setMode("reportMode");showView("report");};document.getElementById("resumeMode").onclick=function(){setMode("resumeMode");renderResume();showView("resume");};document.getElementById("linkedinMode").onclick=function(){setMode("linkedinMode");renderLinkedin();showView("linkedin");};document.getElementById("rubricMode").onclick=function(){setMode("rubricMode");renderRubric();showView("rubric");};document.getElementById("craftMode").onclick=function(){setMode("craftMode");renderCraft();showView("craft");};document.getElementById("crossExport").onclick=function(){copy(JSON.stringify(DATA,null,2),"full cross-item report copied");};
+render();renderResume();renderLinkedin();renderRubric();renderCraft();setMode("reportMode");syncChrome();connect();setInterval(connect,15000);
+})();
+</script>
+</body>
+</html>
