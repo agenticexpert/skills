@@ -57,7 +57,7 @@ Then run the script with the resolved slugs.
 
 ## Default (No Noun Named)
 
-If — and only if — the user gives no hierarchy noun ("what's going on?", "give me a status", "where are we?"), run the full tree:
+If — and only if — the user gives no hierarchy noun ("show me everything", "the whole board"), run the full tree. A status ask — "status", "where are we?", "what's next?" — is not this; it gets the STATUS form under **Interpreting Results**:
 
 ```
 python .claude/skills/tasky/scripts/view_all.py
@@ -80,6 +80,7 @@ python .claude/skills/tasky/scripts/view_all.py
 | What's blocked? | `view_all.py --blocked` — compact text: task slug, location, unmet deps |
 | What's hidden / in focus? | any view script with `--all` |
 | Dependency graph | `view_deps.py <project> <roadmap> [<track> [<milestone>]]` — ASCII tree with status char, seq, and slug; more args narrow scope: roadmap → track deps, +track → milestone deps, +milestone → task deps |
+| Where am I / what's in flight? | `view_branches.py [<project>]` — the branch chain from the current position outward, then every other open branch |
 
 ---
 
@@ -87,7 +88,7 @@ python .claude/skills/tasky/scripts/view_all.py
 
 **Triggers:** "what are the next tasks", "show me the next tasks", "next tasks", "next tasks report"
 
-**Not this:** "show the tasks" / "view tasks" → use `view_tasks.py` (diagram). That stays unchanged. Bare "what's next?" / "where are we?" → the LINEAR PATH format under **Interpreting Results**, not this report.
+**Not this:** "show the tasks" / "view tasks" → use `view_tasks.py` (diagram). That stays unchanged. Bare "status" / "what's next?" / "where are we?" → the STATUS form under **Interpreting Results**, not this report.
 
 Steps:
 
@@ -137,19 +138,21 @@ If there's nothing DOING and nothing unblocked, surface that directly:
 
 If the project is empty or has no tasks yet, say so plainly and name the single next action — decomposing the work into tracks and milestones, which routes to `plan.md`, or `brainstorm.md` when the idea is still fuzzy. State it as the next step, not as an offer among options.
 
-### "Where are we?" / "what's next?" / "plan to finish X" → answer as a LINEAR PATH
+### Status — "status" / "where are we?" / "what's next?" / "plan to finish X" → answer in the STATUS form
 
 These questions get a path, never a menu. Format:
 
 ```
-WHERE ARE: <a few words — current state, and the one thing that blocks progress if blocked>
-TO <goal — finish the current task / reach the next unblocked task>:
+STATUS: <where the work stands — one plain fact>
+
+- <what blocks progress, if anything>
+
+NEXT:
 - <step, a few words> [task id]
 - <step> [task id]
-- ...
-First: <the single next action>
 ```
 
-- A blocker folds INTO the order as its own step (put it first), never as a branch or an A/B choice: "do X, blocked on Y → so Y first."
+- Facts only — no describing, justifying, or contrasting.
+- A blocker also leads `NEXT:` as its own step, never as a branch or an A/B choice.
 - A status answer never carries options, deferrals-dressed-as-choices, or a clarifier block — the Auto-Proceed Doctrine (`SKILL.md`) applied to this format.
 - A few words per step. No elaboration, no restating the board.

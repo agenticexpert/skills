@@ -13,4 +13,4 @@ Decisions follow `SKILL.md` → **Deciding**.
 
 1. {instructions}
 2. {task}
-3. Audit results against the task criteria — confirm each criterion is met, surface any gaps
+3. For each task criterion, name the command, file, or output that proves it; surface any criterion with no proof

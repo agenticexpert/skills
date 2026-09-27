@@ -71,7 +71,7 @@ Tasky's `SKILL.md` only loads when `/tasky` is invoked, and the compactor is not
 <!-- tasky:compact-instructions:start -->
 ## Compact Instructions
 
-Route every action on the data root (`{root}/`) through a `references/*.md` playbook under `{skills}/`. "Create a task" / "track this as work" → `structure.md`, even mid-flow on another task. Before the first action that changes a file or produces a deliverable, or on an ask reporting work finished or ticking a criterion, run the Tracked-Work Check in `navigate.md`. On a match, route through `execute.md`. Never create a task; that is `structure.md`. Two or more equal matches → ask which. When a task completes, the hand-back always takes the report form (`references/report.md`) — plain and actionable: a `DONE:` line, a `BLOCKED:` line only when something blocks the user, never a raw status line or a machine dump.
+Route every action on the data root (`{root}/`) through a `references/*.md` playbook under `{skills}/`. "Create a task" / "track this as work" → `structure.md`, even mid-flow on another task. Before the first action that changes a file or produces a deliverable, or on an ask reporting work finished or ticking a criterion, run the Tracked-Work Check in `navigate.md`. On a match, route through `execute.md`. Never create a task; that is `structure.md`. Two or more equal matches → ask which. When a task completes, the hand-back takes the form in `references/report.md`: `STATUS:` first, facts only, a `DECIDE:` line only when the user must decide something.
 <!-- tasky:compact-instructions:end -->
 ```
 
@@ -79,7 +79,40 @@ Route every action on the data root (`{root}/`) through a `references/*.md` play
 
 ---
 
-## Step 5 — Offer to Create the First Project
+## Step 5 — Install the report hook
+
+`{skills}/hooks/tasky-report-gate` (Stop) enforces the report form. It sends each task
+hand-back to a fresh reviewer that cuts every line the user would not see the point of,
+and rejects any reply that shows tasky internals to the user. Every other channel is
+advisory and loses to whatever is nearer the reply.
+
+Ask which scope the user wants:
+
+> Enforce the report form in this project only, or everywhere?
+
+**This project** — add to `.claude/settings.json`, leaving the script where it is:
+
+```json
+{
+  "hooks": {
+    "Stop": [{"matcher": ".*", "hooks": [
+      {"type": "command", "command": "$CLAUDE_PROJECT_DIR/{skills}/hooks/tasky-report-gate"}
+    ]}]
+  }
+}
+```
+
+**Everywhere** — copy the script to `~/.claude/hooks/` and use the same block in
+`~/.claude/settings.json` with `~/.claude/hooks/` in place of the `$CLAUDE_PROJECT_DIR`
+path. It stays inert in repos with no `tasky.md`.
+
+Merge into the existing `hooks` object; never replace it, and never add a command twice.
+The gate allows exactly one rewrite and never measures fenced code. To switch it off
+without unwiring it, set `TASKY_REPORT_FORM=off` in the environment.
+
+---
+
+## Step 6 — Offer to Create the First Project
 
 Ask:
 > What's the first project you want to work on? I can create the structure now, or you can do that when you're ready.

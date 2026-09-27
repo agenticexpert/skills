@@ -9,7 +9,8 @@ Usage:
   python manage_tasks.py move <project> <roadmap> <track> <milestone> <slug> [--insert <n>] [--dest <roadmap/track/milestone>]
   python manage_tasks.py add-dep <project> <roadmap> <track> <milestone> <slug> <dep-slug>
   python manage_tasks.py remove-dep <project> <roadmap> <track> <milestone> <slug> <dep-slug>
-  python manage_tasks.py set-status <project> <roadmap> <track> <milestone> <slug> <status>
+  python manage_tasks.py set-status <project> <roadmap> <track> <milestone> <slug> <status> [--force]
+  python manage_tasks.py check <project> <roadmap> <track> <milestone> <slug> <n> --evidence <text>
   python manage_tasks.py list <project> <roadmap> <track> <milestone>
 """
 
@@ -24,6 +25,32 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import TASKY_ROOT, validate_slug, validate_slash_path
 
 VALID_STATUSES = {"X", "TODO", "PENDING", "DOING", "PAUSED", "READY", "DONE"}
+
+MID_RE = re.compile(r"^branch--[0-9a-f]{8}$")
+
+
+def is_marker(slug):
+    return bool(MID_RE.fullmatch(slug))
+
+
+def reject_reserved(slug, label="task slug"):
+    """A double hyphen is reserved for branch marker ids and never names a task."""
+    if "--" in slug:
+        print(
+            f"Error: invalid {label} '{slug}'. A double hyphen is reserved for branch markers.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
+def insert_limit(data, t_key, order, oob=False):
+    """Positions available above a trailing closing branch marker in this array."""
+    if order and is_marker(order[-1]):
+        rec = data.get("branches", {}).get(order[-1])
+        if rec and rec.get("destination") == t_key and bool(rec.get("oob")) == bool(oob):
+            return len(order) - 1
+    return len(order)
+
 
 TASK_TEMPLATE = """# {title}
 
@@ -84,6 +111,7 @@ def load_project_json(project):
     data.setdefault("oob_milestones", {})
     data.setdefault("oob_tasks", {})
     data.setdefault("milestone_deps", {})
+    data.setdefault("branches", {})
     return data
 
 def save_project_json(project, data):
@@ -100,6 +128,23 @@ def read_task_status(task_path):
             if m:
                 return m.group(1).strip()
     return "X"
+
+CRITERION_RE = re.compile(r"^(\s*-\s*\[)([ xX])(\]\s*)(.*)$")
+
+
+def criteria_lines(content):
+    """(line index, checked, text) for each checkbox under ## Criteria."""
+    lines = content.split("\n")
+    out, inside = [], False
+    for i, line in enumerate(lines):
+        if line.startswith("## "):
+            inside = line.strip() == "## Criteria"
+            continue
+        m = CRITERION_RE.match(line) if inside else None
+        if m:
+            out.append((i, m.group(2) != " ", m.group(4).strip()))
+    return out
+
 
 def write_task_status(task_path, new_status):
     with open(task_path) as f:
@@ -121,6 +166,7 @@ def cmd_create(args):
     validate_slug(args.track, "track slug")
     validate_slug(args.milestone, "milestone slug")
     validate_slug(args.slug, "task slug")
+    reject_reserved(args.slug, "task slug")
     mpath = milestone_path(args.project, args.roadmap, args.track, args.milestone)
     assert_exists(mpath, f"milestone '{args.milestone}'")
 
@@ -134,15 +180,16 @@ def cmd_create(args):
     if getattr(args, "oob", False):
         order = data["oob_tasks"].setdefault(t_key, [])
         if args.slug not in order:
-            order.append(args.slug)
+            order.insert(insert_limit(data, t_key, order, oob=True), args.slug)
     else:
         order = data["tasks"].setdefault(t_key, [])
+        limit = insert_limit(data, t_key, order)
 
         if args.insert:
-            insert_at = max(1, min(args.insert, len(order) + 1)) - 1  # 0-based
+            insert_at = max(1, min(args.insert, limit + 1)) - 1  # 0-based
             order.insert(insert_at, args.slug)
         else:
-            order.append(args.slug)
+            order.insert(limit, args.slug)
 
         # Validate deps point backward
         if deps:
@@ -181,6 +228,7 @@ def cmd_rename(args):
     validate_slug(args.milestone, "milestone slug")
     validate_slug(args.slug, "task slug")
     validate_slug(args.new_slug, "new task slug")
+    reject_reserved(args.new_slug, "new task slug")
     mpath = milestone_path(args.project, args.roadmap, args.track, args.milestone)
     assert_exists(mpath, f"milestone '{args.milestone}'")
 
@@ -328,11 +376,12 @@ def cmd_move(args):
         if not order:
             data["tasks"].pop(t_key, None)
         dest_order_list = data["tasks"].setdefault(dest_t_key, [])
+        dest_limit = insert_limit(data, dest_t_key, dest_order_list)
         if args.insert:
-            insert_at = max(1, min(args.insert, len(dest_order_list) + 1)) - 1
+            insert_at = max(1, min(args.insert, dest_limit + 1)) - 1
             dest_order_list.insert(insert_at, args.slug)
         else:
-            dest_order_list.append(args.slug)
+            dest_order_list.insert(dest_limit, args.slug)
 
         save_project_json(args.project, data)
         print(f"Moved task '{args.slug}' from '{args.roadmap}/{args.track}/{args.milestone}' to '{args.dest}'.")
@@ -344,7 +393,8 @@ def cmd_move(args):
         sys.exit(1)
 
     order.remove(args.slug)
-    insert_at = max(1, min(args.insert, len(order) + 1)) - 1  # 0-based
+    limit = insert_limit(data, t_key, order)
+    insert_at = max(1, min(args.insert, limit + 1)) - 1  # 0-based
     order.insert(insert_at, args.slug)
 
     print("Warning: verify no dependency in this milestone points forward after the move.")
@@ -459,8 +509,54 @@ def cmd_set_status(args):
         print(f"Error: task '{args.slug}' not found.", file=sys.stderr)
         sys.exit(1)
 
+    if not args.force:
+        current = read_task_status(task_path).upper()
+        if status == "DONE" and current != "READY":
+            print(f"Error: '{args.slug}' is {current}. DONE comes only from READY, after the user confirms.", file=sys.stderr)
+            sys.exit(1)
+        if status in ("READY", "DONE"):
+            with open(task_path) as f:
+                open_ = [text for _, checked, text in criteria_lines(f.read()) if not checked]
+            if open_:
+                print(f"Error: {len(open_)} criteria still unchecked — set PAUSED instead:", file=sys.stderr)
+                for text in open_:
+                    print(f"  [ ] {text}", file=sys.stderr)
+                sys.exit(1)
+
     write_task_status(task_path, status)
     print(f"Set '{args.slug}' status to {status}")
+
+
+def cmd_check(args):
+    validate_slug(args.project, "project slug")
+    validate_slug(args.roadmap, "roadmap slug")
+    validate_slug(args.track, "track slug")
+    validate_slug(args.milestone, "milestone slug")
+    validate_slug(args.slug, "task slug")
+    mpath = milestone_path(args.project, args.roadmap, args.track, args.milestone)
+    task_path = os.path.join(mpath, f"{args.slug}.md")
+    if not os.path.isfile(task_path):
+        print(f"Error: task '{args.slug}' not found.", file=sys.stderr)
+        sys.exit(1)
+    if not args.evidence.strip():
+        print("Error: --evidence must name the command, file, or output that proves it.", file=sys.stderr)
+        sys.exit(1)
+
+    with open(task_path) as f:
+        content = f.read()
+    items = criteria_lines(content)
+    if not 1 <= args.n <= len(items):
+        print(f"Error: criterion {args.n} does not exist; the task has {len(items)}.", file=sys.stderr)
+        sys.exit(1)
+    index, checked, text = items[args.n - 1]
+    if checked:
+        print(f"Already checked: {text}")
+        return
+    lines = content.split("\n")
+    lines[index] = CRITERION_RE.sub(lambda m: f"{m.group(1)}x{m.group(3)}{m.group(4)}", lines[index])
+    with open(task_path, "w") as f:
+        f.write("\n".join(lines))
+    print(f"Checked: {text}\n  evidence: {args.evidence.strip()}")
 
 
 def cmd_list(args):
@@ -568,6 +664,17 @@ def main():
     p_set_status.add_argument("milestone")
     p_set_status.add_argument("slug")
     p_set_status.add_argument("status")
+    p_set_status.add_argument("--force", action="store_true",
+                              help="Skip the READY/DONE guards — only on the user's explicit word")
+
+    p_check = sub.add_parser("check", help="Check one criterion, with its evidence")
+    p_check.add_argument("project")
+    p_check.add_argument("roadmap")
+    p_check.add_argument("track")
+    p_check.add_argument("milestone")
+    p_check.add_argument("slug")
+    p_check.add_argument("n", type=int, help="Criterion number, from 1")
+    p_check.add_argument("--evidence", required=True)
 
     p_list = sub.add_parser("list", help="List tasks in a milestone")
     p_list.add_argument("project")
@@ -591,6 +698,8 @@ def main():
         cmd_remove_dep(args)
     elif args.command == "set-status":
         cmd_set_status(args)
+    elif args.command == "check":
+        cmd_check(args)
     elif args.command == "list":
         cmd_list(args)
     else:

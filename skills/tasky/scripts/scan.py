@@ -41,6 +41,7 @@ def load_project_json(project):
     data.setdefault("oob_milestones", {})
     data.setdefault("oob_tasks", {})
     data.setdefault("milestone_deps", {})
+    data.setdefault("branches", {})
     return data
 
 def save_project_json(project, data):

@@ -24,6 +24,23 @@ COL_SEQ    = 3
 COL_STATUS = 7
 MAX_TITLE  = 52
 
+MID_RE = re.compile(r"^branch--[0-9a-f]{8}$")
+
+
+def is_marker(slug):
+    return bool(MID_RE.fullmatch(slug))
+
+
+def split_markers(order, branches=None):
+    """Partition an order array into task slugs and [(mid, after_index)] marker rows."""
+    task_slugs, markers = [], []
+    for slug in order:
+        if is_marker(slug):
+            markers.append((slug, len(task_slugs)))
+        else:
+            task_slugs.append(slug)
+    return task_slugs, markers
+
 
 # ---------------------------------------------------------------------------
 # project.json helpers
@@ -44,6 +61,7 @@ def load_project_json(project):
     data.setdefault("oob_milestones", {})
     data.setdefault("oob_tasks", {})
     data.setdefault("milestone_deps", {})
+    data.setdefault("branches", {})
     return data
 
 # ---------------------------------------------------------------------------
@@ -81,7 +99,7 @@ def load_tasks(milestone_dir, task_order):
         return []
 
     if task_order:
-        slugs = task_order
+        slugs, _ = split_markers(task_order)
     else:
         slugs = sorted([
             f.replace(".md", "")
@@ -150,9 +168,40 @@ def dep_lines(deps):
     return list(deps)
 
 
-def render(milestone_name, tasks, oob_tasks=None):
+def marker_lines(markers, branches, t_key, oob):
+    """Split [(mid, after_index)] into inline open-marker lines and the closing line."""
+    inline, closing = {}, None
+    for mid, after in markers:
+        rec = branches.get(mid)
+        if rec is None:
+            continue
+        if rec.get("destination") == t_key and bool(rec.get("oob")) == bool(oob):
+            closing = (
+                after,
+                "⤶".rjust(COL_SEQ) + "  end of branch → back to "
+                + branch_label(rec.get("origin", ""))
+                + (f" · {rec['origin_anchor']}" if rec.get("origin_anchor") else ""),
+            )
+        else:
+            inline.setdefault(after, []).append(
+                "↑".rjust(COL_SEQ) + "  to " + branch_label(rec.get("destination", ""))
+                + " · " + rec.get("state", "open")
+            )
+    return inline, closing
+
+
+def branch_label(t_key):
+    parts = t_key.split("/")
+    return "/".join(parts[-2:]) if len(parts) >= 2 else t_key
+
+
+def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None,
+           branches=None, t_key=None):
     if oob_tasks is None:
         oob_tasks = []
+    branches = branches or {}
+    inline, closing = marker_lines(markers or [], branches, t_key, False)
+    oob_inline, oob_closing = marker_lines(oob_markers or [], branches, t_key, True)
 
     if not tasks and not oob_tasks:
         return f"{milestone_name}\n(no tasks)"
@@ -190,11 +239,16 @@ def render(milestone_name, tasks, oob_tasks=None):
 
     out = [ms_line, sep, col_hdr]
 
+    for line in inline.get(0, []):
+        out.append(" " + line)
+
     for t, deps in zip(tasks, seq_dep_lists):
         title = t["title"]
         if len(title) > MAX_TITLE:
             title = title[:MAX_TITLE - 3] + "..."
         marker = "  ← next" if t["seq"] == next_seq else ""
+        if not marker and closing and t["seq"] == closing[0]:
+            marker = "  ← new task inserts here"
         out.append(
             " " +
             str(t["seq"]).rjust(COL_SEQ) + "  " +
@@ -210,6 +264,11 @@ def render(milestone_name, tasks, oob_tasks=None):
                 " " * col_title +
                 d.ljust(col_deps)
             )
+        for line in inline.get(t["seq"], []):
+            out.append(" " + line)
+
+    if closing:
+        out.append(" " + closing[1])
 
     if oob_tasks:
         out.append(sep)
@@ -231,6 +290,10 @@ def render(milestone_name, tasks, oob_tasks=None):
                     " " * col_title +
                     d.ljust(col_deps)
                 )
+        for line in [l for lines in oob_inline.values() for l in lines]:
+            out.append(" " + line)
+        if oob_closing:
+            out.append(" " + oob_closing[1])
 
     out.append(sep)
 
@@ -265,10 +328,14 @@ def main():
         print(f"Error: milestone '{milestone}' not found.", file=sys.stderr)
         sys.exit(1)
     t_key = f"{roadmap}/{track}/{milestone}"
-    tasks = load_tasks(milestone_dir, data["tasks"].get(t_key, []))
-    oob_slugs = sorted(data["oob_tasks"].get(t_key, []))
+    order = data["tasks"].get(t_key, [])
+    _, markers = split_markers(order, data["branches"])
+    tasks = load_tasks(milestone_dir, order)
+    oob_order = data["oob_tasks"].get(t_key, [])
+    oob_plain, oob_markers = split_markers(oob_order, data["branches"])
+    oob_slugs = sorted(oob_plain)
     oob_tasks = load_tasks(milestone_dir, oob_slugs) if oob_slugs else []
-    print(render(milestone, tasks, oob_tasks))
+    print(render(milestone, tasks, oob_tasks, markers, oob_markers, data["branches"], t_key))
 
 
 if __name__ == "__main__":

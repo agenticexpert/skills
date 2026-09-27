@@ -17,6 +17,24 @@ from collections import defaultdict
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import TASKY_ROOT
 
+MID_RE = re.compile(r"^branch--[0-9a-f]{8}$")
+
+
+def is_marker(slug):
+    return bool(MID_RE.fullmatch(slug))
+
+
+def split_markers(order, branches=None):
+    """Partition an order array into task slugs and [(mid, after_index)] marker rows."""
+    task_slugs, markers = [], []
+    for slug in order:
+        if is_marker(slug):
+            markers.append((slug, len(task_slugs)))
+        else:
+            task_slugs.append(slug)
+    return task_slugs, markers
+
+
 STATUS_CHAR = {
     "done":    "█",
     "doing":   "▓",
@@ -47,6 +65,7 @@ def load_project_json(project):
     data.setdefault("milestones", {})
     data.setdefault("oob_milestones", {})
     data.setdefault("milestone_deps", {})
+    data.setdefault("branches", {})
     return data
 
 
@@ -79,6 +98,7 @@ def load_tasks(milestone_dir, task_order):
             for f in os.listdir(milestone_dir)
             if f.endswith(".md") and not f.startswith(".")
         ])
+    task_order, _ = split_markers(task_order)
     tasks = []
     for seq, slug in enumerate(task_order, 1):
         fpath = os.path.join(milestone_dir, f"{slug}.md")

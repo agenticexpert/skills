@@ -249,8 +249,13 @@ def render(roadmap, milestones, oob_milestones=None, hidden_milestones=None, sho
     if hidden_milestones is None:
         hidden_milestones = []
 
-    n = len(milestones)
-    seq_w = len(str(n)) if n > 0 else 1
+    count = len(milestones)
+    seq_w = len(str(count)) if count > 0 else 1
+
+    # Columns run out to the last slot something actually occupies. Trailing
+    # slots no milestone is scheduled in are not drawn.
+    occupied = [s for m in milestones + oob_milestones for s in m.get("slots", [])]
+    n = max(occupied) if occupied else count
 
     max_name = max((len(m["name"]) for m in milestones), default=4)
     label_w  = seq_w + 2 + max_name + 3

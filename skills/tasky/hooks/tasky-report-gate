@@ -1,0 +1,310 @@
+#!/usr/bin/env python3
+# Stop: holds tasky replies to references/report.md.
+# A reply after a task-ending set-status goes to a fresh reviewer, which cuts every line
+# the user would not see the point of. Any other reply is checked for the form and for
+# machine vocabulary, which is out of bounds in any user-facing reply.
+#
+# Inert unless a tasky.md is in force. Never fires on a term the user used first, so
+# answering a question about `manage_tasks.py` stays legal. Fenced code is exempt.
+# Set TASKY_REPORT_FORM=off in the environment to disable.
+
+import json
+import os
+import pathlib
+import re
+import sys
+import tempfile
+
+FORBIDDEN = [
+    (r'\bset-status\b', 'the set-status command'),
+    (r'\b(?:manage|view)_\w+\.py\b', 'a tasky script filename'),
+    (r'^\s*-\s*\[[ xX]\]', 'a raw criterion checkbox'),
+    (r'\bcriteri(?:on|a)\s+\d', 'a criterion number'),
+    (r'^\s*STATUS:\s*(?:COMPLETE|BLOCKED|DOING|READY|DONE|PAUSED|PENDING)\s*$', 'a raw status line'),
+    (r'\b\d{2}-[a-z0-9]+(?:-[a-z0-9]+)+\b(?!\.md)', 'a directory slug'),
+    (r'\.agents/tasky/', 'an internal path'),
+    (r'\b(?:READY|DOING|PAUSED)\b', 'a raw task status'),
+    (r'\bcriteria (?:met|checked|verified)\b|\d+\s*/\s*\d+ criteria', 'a criteria tally'),
+    (r'\bgates? (?:all )?(?:green|0|clean)\b', 'gate mechanics'),
+    (r'\d+\s*(?:→|->)\s*\d+ tests\b', 'a test-count delta'),
+    (r'\b(?:sub-agent|the receipt)\b', 'an internal actor'),
+]
+
+# A tasky script call that ends work on a task. The reply after it is a hand-back.
+TASK_END = re.compile(
+    r'''(?:^|[;&|]\s*)python3?\s+(?:"[^"\n]*|'[^'\n]*|\S*)manage_tasks\.py["']?\s+set-status\b[^\n]*?\s(?:ready|paused|done)\b''',
+    re.M,
+)
+
+
+def ending_command(block):
+    # The Bash command in a tool_use block when it ends a task, else ''.
+    if not isinstance(block, dict) or block.get('type') != 'tool_use' or block.get('name') != 'Bash':
+        return ''
+    command = str(block.get('input', {}).get('command', ''))
+    return command if TASK_END.search(command) else ''
+
+
+def tasky_config():
+    # The tasky.md in force, or None.
+    root = pathlib.Path(os.environ.get('CLAUDE_PROJECT_DIR', '.')).resolve()
+    for parent in [root, *root.parents]:
+        for name in ('tasky.md', '.agents/tasky/tasky.md'):
+            if (parent / name).is_file():
+                return parent / name
+    return None
+
+
+def tasky_in_force():
+    return tasky_config() is not None
+
+
+def transcript_tail(path):
+    # Returns (newest assistant reply, newest user message, whether this turn ended a task).
+    try:
+        lines = open(path, encoding='utf-8').read().splitlines()
+    except OSError:
+        return '', '', ''
+
+    def text_of(entry):
+        blocks = entry.get('message', {}).get('content', [])
+        if isinstance(blocks, str):
+            return blocks
+        return '\n'.join(
+            b.get('text', '') for b in blocks
+            if isinstance(b, dict) and b.get('type') == 'text'
+        )
+
+    reply = prompt = ''
+    ended = ''
+    for line in reversed(lines):
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        if entry.get('isSidechain'):
+            continue
+        kind = entry.get('type')
+        if kind == 'assistant':
+            if not reply:
+                reply = text_of(entry)
+            blocks = entry.get('message', {}).get('content', [])
+            if isinstance(blocks, list):
+                ended = next((c for c in map(ending_command, blocks) if c), ended)
+        elif kind == 'user':
+            text = text_of(entry)
+            if text.strip():
+                prompt = text
+                break
+    return reply, prompt, ended
+
+
+def strip_code(text):
+    return re.sub(r'^```.*?^```', '', text, flags=re.M | re.S)
+
+
+MAX_STATUS_WORDS = 20    # backstops for "a few words"; the playbook never counts
+MAX_BULLET_WORDS = 15
+MAX_DECIDE_WORDS = 45
+
+
+# Inside a hand-back, a line about the work itself is a note to whoever builds next.
+WORK_LOG = re.compile(
+    r"\bI(?:'ve| have)? (?:ran|run|confirmed|verified|checked|tested|re-ran|proved|"
+    r"fixed|wrote|added|updated|recorded|traced)\b"
+    r"|\b(?:suites?|tests?|build|typecheck|lint)\b[^.\n]*\b(?:all )?(?:green|pass(?:es|ed|ing))\b",
+    re.I,
+)
+
+
+# Describing, justifying and contrasting — the connective tissue of a ramble.
+CONNECTIVE = re.compile(
+    r",\s*(?:but|so|which|since|because)\b|\b(?:because|which means|so that|even though|"
+    r"although|whereas|rather than)\b|;\s",
+    re.I,
+)
+
+
+def form_violation(body):
+    # Only a reply that uses the form is held to it.
+    match = re.search(r'^STATUS:', body, re.M)
+    if not match:
+        return None
+    if body[:match.start()].strip():
+        return 'text before the STATUS: line', body.strip().splitlines()[0][:60]
+
+    # Allowed after STATUS: blank lines, "- fact" bullets at any depth, NEXT:, DECIDE:,
+    # and a TEST IT: block of numbered steps.
+    section = 'STATUS'
+    for line in body[match.start():].splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        head = re.match(r'(STATUS|NEXT|DECIDE|TEST IT):', stripped)
+        if head:
+            fact, label = stripped[head.end():].strip(), head.group(1)
+            section = label
+        elif stripped.startswith('- '):
+            fact, label = stripped[2:], 'DECIDE' if section == 'DECIDE' else 'bullet'
+        elif re.match(r'\d+\. ', stripped):
+            fact, label = stripped.split(' ', 1)[1], 'bullet'
+        elif re.match(r'[A-Z][A-Z ]{2,}:', stripped):
+            return 'a section the form does not have', stripped[:60]
+        else:
+            return 'prose outside the form — facts go in bullets', stripped[:60]
+
+        log = WORK_LOG.search(fact)
+        if log and not re.search(r'\b(?:should|will|expect)\b', fact, re.I):
+            return 'an account of the work, written for the next builder', log.group(0)
+        if label != 'DECIDE' and CONNECTIVE.search(fact):
+            return 'describing or justifying — reduce it to the fact', fact[:60]
+        cap = {'STATUS': MAX_STATUS_WORDS, 'DECIDE': MAX_DECIDE_WORDS}.get(label, MAX_BULLET_WORDS)
+        if len(fact.split()) > cap:
+            return f'a {len(fact.split())}-word line — one fact, a few words', fact[:60]
+    return None
+
+
+def violation(reply, prompt, ended=False):
+    body = strip_code(reply)
+    if ended and body.strip() and not re.search(r'^STATUS:', body, re.M):
+        return 'a task hand-back with no STATUS: line', body.strip().splitlines()[0][:60]
+    found = form_violation(body)
+    if found:
+        return found
+    for pattern, name in FORBIDDEN:
+        match = re.search(pattern, body, re.M)
+        if not match:
+            continue
+        # The user raised it first — answering them is not a leak.
+        if re.search(pattern, prompt, re.M):
+            continue
+        return name, match.group(0).strip()
+    return None
+
+
+
+REVIEWER = """\
+You review a task report before its reader sees it. Output only the final report.
+
+The reader is the user: one person at a terminal who saw none of the work and knows
+only this task's goal. Test every line of the draft: would the user, knowing only
+this task's goal and their own last message, see at once why the line is there?
+No -> cut it. A line fails when it is about anything the goal and the message do
+not ask about, a reason, a comparison, how something works inside, what was run or
+checked, what does not exist yet, another task's work, or a warning about later
+work. Keep a warning only when the user must change course now. A NEXT line is an
+action toward this task's goal; a note folded into it fails like any other line.
+
+Cut; never add a fact. Reword a kept line only to drop a failing clause, or to put
+it in words the user would use instead of the builder's. Never drop the words that
+say a result is wrong, partial or unfinished; without them the fact is false. A line
+that tells the user how to see the work moves into TEST IT. Keep the shape:
+
+STATUS: <where this task stands, one short sentence>
+
+- <a fact>
+  - <a detail of that fact>
+
+NEXT:
+  TEST IT:
+    1. <what to do>
+    2. <what to do>
+
+    - <what you should see>
+- Me: <my next step toward this task's goal>
+
+DECIDE: <the choice, in terms of what the user would notice>
+  - <option>: <what it changes for them>
+  - <option>: <what it changes for them>
+  - my pick: <option> — <what only you know that could change it>
+
+STATUS stays first. Drop a section left empty. When the next step is the user trying
+the work, NEXT holds a TEST IT: block: numbered actions, then what they should see.
+Every other NEXT line starts with who acts: "You:" for the user, "Me:" for the
+builder. The user's steps come first; a builder step that runs meanwhile says so.
+
+DECIDE stays only when the task cannot finish without the user's answer, and only in
+that shape, built from facts the draft gives. A choice that does not block the task,
+or that the draft names only in code terms, is cut.
+
+== TASK FILE ==
+{task}
+
+== THE USER'S LAST MESSAGE ==
+{prompt}
+
+== DRAFT REPORT ==
+{reply}
+"""
+
+
+def task_file(command):
+    # The task file an ending set-status command names, as text.
+    args = command.split('set-status', 1)[-1].split()
+    if len(args) < 5:
+        return '(not found)'
+    milestone, slug = args[3], args[4]
+    config = tasky_config()
+    roots = [config.parent, config.parent / '.agents' / 'tasky'] if config else []
+    for root in roots:
+        for path in root.glob(f'**/{milestone}/{slug}.md'):
+            return path.read_text(encoding='utf-8')[:6000]
+    return '(not found)'
+
+
+def review_packet(reply, prompt, command):
+    # Writes the reviewer's brief to a temp file and returns its path.
+    folder = pathlib.Path(tempfile.gettempdir()) / 'tasky-review'
+    folder.mkdir(exist_ok=True)
+    path = folder / f'{os.getpid()}.md'
+    path.write_text(REVIEWER.format(task=task_file(command), prompt=prompt.strip()[:3000],
+                                    reply=reply.strip()), encoding='utf-8')
+    return path
+
+
+def main():
+    if os.environ.get('TASKY_REPORT_FORM', '').lower() in ('off', '0', 'false'):
+        return
+    if not tasky_in_force():
+        return
+    try:
+        payload = json.load(sys.stdin)
+    except ValueError:
+        return
+    if payload.get('stop_hook_active'):
+        return
+
+    reply, prompt, ended = transcript_tail(payload.get('transcript_path', ''))
+    reply = payload.get('last_assistant_message') or reply
+
+    # A hand-back goes to a fresh reviewer before the user reads it.
+    if ended and reply.strip():
+        packet = review_packet(reply, prompt, ended)
+        print(json.dumps({
+            'decision': 'block',
+            'reason': (
+                f'REPORT REVIEW: spawn one Agent (model "opus") with the prompt '
+                f'"Read {packet} and do what it says." Wait for its result, then reply to the '
+                'user with exactly the report it returns and nothing else. Say nothing about this review.'
+            ),
+        }))
+        return
+
+    found = violation(reply, prompt, ended)
+    if not found:
+        return
+
+    name, snippet = found
+    print(json.dumps({
+        'decision': 'block',
+        'reason': (
+            f'REPORT FORM VIOLATION: the reply shows {name} ("{snippet}") to a reader '
+            'who saw none of the work. Rewrite it for them: reduce it to facts: STATUS: '
+            'first, then "- fact" bullets and NEXT: only if they have content, DECIDE: only '
+            'for a question only they can answer. No describing, justifying or contrasting. Say nothing about this rewrite.'
+        ),
+    }))
+
+
+if __name__ == '__main__':
+    main()

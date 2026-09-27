@@ -1,56 +1,39 @@
-# Report Form — the shape of a task summary / action hand-back
+# Report — what the user reads when tasky hands back
 
-The canonical shape for any user-facing moment where tasky hands back a **task
-summary** or tells the user **what to do next**. It exists so a reader who saw none of
-the work learns exactly two things and no more: whether what they asked for was done,
-and anything that genuinely blocks them. Everything else — internal slugs, problems
-already found and fixed, a blow-by-blow of the work — is noise the reader did not ask
-for, and the form is built to keep it out.
-
-This is the ONLY copy of the form; tasky points here and never pastes it inline (copies
-drift). It governs **tasky's hand-back alone** — singleshot carries its own summary
-shape and does not use this file.
-
-## The form
-
-A hand-back has three content slots, each opened by a literal label. **The label is the
-form: an unlabeled hand-back is not this form**, however plainly it reads.
+The reader is the user: one person at a terminal who saw none of the work.
 
 ```
-DONE: <one plain line — what the user asked for, and whether it is done>
-BLOCKED: <only when one exists — a real blocker, or a question only the user can
-         settle. Omit the label entirely when nothing blocks.>
-NOTES: <optional tail — where things stand, and anything worth checking or testing>
+STATUS: <where this task stands — one short sentence>
+
+- <a fact>
+  - <a detail of that fact>
+
+NEXT:
+  TEST IT:
+    1. <what to do>
+    2. <what to do>
+
+    - <what you should see>
+- Me: <my next step toward this task's goal>
+
+DECIDE: <the choice, in terms of what you would notice>
+  - <option>: <what it changes for you>
+  - <option>: <what it changes for you>
+  - my pick: <option> — <what only you know that could change it>
 ```
 
-- **`DONE:` is always present.** It answers the one question the reader always has —
-  did the thing I asked for get done? One plain sentence, no internals.
-- **`BLOCKED:` appears only when something genuinely blocks the reader** — a dependency
-  that isn't done, or an ambiguity that cannot be resolved without them. Nothing
-  blocking → the label does not appear at all. This is the form's teeth: a blocker the
-  reader must act on is a labeled line, never buried in prose.
-- **`NOTES:` is an optional tail** for specifics — the state of play, or a short list of
-  what to run or verify. What-to-test items live here, in plain language.
+**The one test, for every line:** would the user, knowing only this task's goal, see at once why the line is there? No → cut it. Nothing else earns a line — not a reason, a comparison, a warning about later work, or how it works inside. A warning stays only when it is severe enough that the user must change course now.
 
-## Forbidden — by name
+`STATUS:` always comes first. Every other section appears only when a line in it passes the test. When the next step is the user trying the work, `NEXT:` holds a `TEST IT:` block: numbered actions, then what the user should see, as bullets. Every other `NEXT:` line starts with who acts, `You:` or `Me:`. The user's steps come first; a step of the builder's that runs meanwhile says so.
 
-None of these may appear in a hand-back:
-
-- **Internal identifiers without their plain meaning in the same sentence** — a
-  directory slug, criterion number, step or gate name, `set-status`, a checkbox. Say
-  the thing in human words, or leave it out.
-- **Problems found and already fixed.** If you hit something and resolved it, it is not
-  the reader's concern; it does not go in the hand-back.
-- **A ledger of work performed** — a blow-by-blow of what you did. The reader wants the
-  outcome, not the transcript.
-- **A menu whenever a preferred action can be named.** When one action is clearly right,
-  state it and proceed; never pair it with options the reader would reject. tasky's
-  no-false-menus rule lives in `SKILL.md → Deciding` (§4) — this form does not reopen it.
-
-## One worked example
+`DECIDE:` appears only when the task cannot finish without the user's answer. It names the choice by what the user would notice, what each option changes for them, the builder's pick, and what only the user knows that could change it. A choice that does not block the task, or that can only be named in code terms, is not a DECIDE.
 
 ```
-DONE: the three tasks in the login milestone are finished and their tests pass.
-BLOCKED: the login form needs a session key that only you can issue.
-NOTES: run `make test-auth` to confirm before you mark it done.
+STATUS: CSV export is on the reports page and matches the table.
+
+- large reports take twice the target time
+  - target: 2 seconds
+
+NEXT:
+- Me: streaming exports
 ```

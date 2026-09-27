@@ -16,6 +16,8 @@ The user wants to work a task. Identify which task, load it, do the work, update
 - A DOING task exists in the milestone → resume it, and say so in one line: *"Resuming `{doing-task}`. Say 'start the next one' to switch."* No menu.
 - No DOING task exists → first task in sequence with status `pending` or `paused`. If the next task is `todo` (undefined stub), define it inline from milestone context — the content bar is define.md → **Detail Levels** and **Writing the Task File**, the status flip to `pending` is define.md → **Exit** — then execute. State what you wrote.
 
+**Either "next" case, in a milestone that is a branch destination** — run the return check in `branch.md` → **Returning** before selecting a task. A resolved hop names where to go; nothing resolved means stay here.
+
 **User names a milestone, or asks to work several tasks** — that is **Milestone Mode** below; take its tasks in sequence.
 
 If the milestone context isn't known in any case, resolve it per navigate.md → **Resolving References**. Only when discovery returns nothing is it a blocker.
@@ -81,7 +83,7 @@ Then build the dispatch brief below.
 
 ## Dispatch Brief
 
-Write a self-contained brief — never a pointer to the task file alone. Carry all eight as literal text:
+Write a self-contained brief — never a pointer to the task file alone. Carry all nine as literal text:
 
 1. Absolute repo root.
 2. Absolute task-file path. The sub-agent reads it before starting, for the `## Task` instruction and the Criteria list it must return verdicts against.
@@ -91,6 +93,7 @@ Write a self-contained brief — never a pointer to the task file alone. Carry a
 6. The ownership rule, addressed to the sub-agent, in these words: "You write no tasky state — no `set-status`, no criterion checkboxes, no task-file or `project.json` edit — and you do not invoke tasky. Return a per-criterion verdict with its evidence; the orchestrator writes the boxes."
 7. The blocker rule, addressed to the sub-agent, in these words: "You cannot ask. On an un-inferable decision, or a step that fails, stop, edit nothing further, and return BLOCKED plus the one question."
 8. The receipt template — quote it verbatim from **The Receipt** below.
+9. The keep-going rule, addressed to the sub-agent, in these words: "Your turn ends only with the receipt, STATUS COMPLETE or BLOCKED. A progress note, a summary of next steps, or a partial report is not an ending — put any status note in the same message as your next tool call and keep working."
 
 **Dispatchability precondition.** Dispatch only when both hold:
 
@@ -109,7 +112,13 @@ Check both tests on every dispatch, including each task of a parallel batch.
 
 You perform every write to tasky state — set-status, criterion checkboxes, task files, `project.json`. The sub-agent performs none.
 
-The sub-agent returns a per-criterion verdict with its evidence. You write `[ ]` → `[x]` only for a verdict carrying evidence — the command that ran, the file that exists, the output that proves it.
+The sub-agent returns a per-criterion verdict with its evidence. You tick a box only for a verdict carrying evidence — the command that ran, the file that exists, the output that proves it — one box per call:
+
+```
+python manage_tasks.py check <project> <roadmap> <track> <milestone> <slug> <n> --evidence "<proof>"
+```
+
+Never tick boxes by editing the file.
 
 **Stated cost:** criteria land only at receipt time. A run that dies loses partial progress. Re-dispatch from the first unchecked criterion.
 
@@ -126,6 +135,8 @@ Dispatch in the background. While the run is live the user sees one line from it
 **Orphan rule.** On load, a task at DOING with no live dispatch in this session is resumable: re-read its criteria from disk and re-dispatch from the first unchecked one.
 
 **Short receipt.** A receipt reporting COMPLETE while some criteria are NOT MET, with no BLOCKED question: write the boxes whose verdicts carry evidence, then set `paused` and surface the criteria that came back unmet. Do not re-dispatch them in place — a second attempt is the user's call.
+
+**No receipt.** A return with no `STATUS:` line is a progress report, not an ending. Resume that sub-agent with the criteria still unchecked. After two resumes with no receipt, set `paused` and surface the criteria still open.
 
 ### The Receipt
 
@@ -202,17 +213,39 @@ Criteria already `[x]` on disk preserve what was done — inline, that is everyt
 
 All criteria checked → set status to READY, not DONE. READY means the work is done but has not been validated yet. The user must confirm before DONE is set.
 
+Any criterion not met, or only partly met → leave its box unchecked, set `paused`, and list the unfinished part as a fact bullet. A receipt that says COMPLETE with an unmet criterion is still unmet. `set-status ready` refuses while a box is open.
+
 Before setting READY, re-read the task file from disk — every criterion `[x]` in the file, not in your memory of the session. A criterion still `[ ]` means the work isn't done, whatever the conversation says.
 
 ```
 python manage_tasks.py set-status <project> <roadmap> <track> <milestone> <slug> ready
 ```
 
-Then hand back to the user. This hand-back is the step's ONLY user-facing output, and it ALWAYS takes the form in `references/report.md` — never a raw status line, never a machine dump. Cannot render the form → surface that as a blocker; never fall back to internals.
+Then hand back to the user. This hand-back is the step's ONLY user-facing output, and it always takes the form in `references/report.md` — never a raw status line, never a machine dump. Cannot render the form → surface that as a blocker; never fall back to internals.
 
-Fill the form from the criteria: `DONE:` states whether the work the user asked for is finished; the optional `NOTES:` tail names what the user should run or check to validate, and what each check should show. All criteria met → the minimal report, often just the `DONE:` line plus a short `NOTES:` tail carrying the validation step. Any criterion unmet → a `BLOCKED:` line names only the unmet ones, in plain language.
+```
+STATUS: <where this task stands — one short sentence>
 
-Never surface internals in the hand-back — criterion numbers, checkboxes, gate mechanics, `set-status`, directory slugs, the Receipt. What the user should test belongs in the `NOTES:` tail in plain language, not a separate machine `TO TEST` dump. Report CONTENT is governed by SKILL.md → **Deciding**, same as every other hand-back.
+- <a fact>
+  - <a detail of that fact>
+
+NEXT:
+  TEST IT:
+    1. <what to do>
+    2. <what to do>
+
+    - <what you should see>
+- Me: <my next step toward this task's goal>
+
+DECIDE: <the choice, in terms of what you would notice>
+  - <option>: <what it changes for you>
+  - <option>: <what it changes for you>
+  - my pick: <option> — <what only you know that could change it>
+```
+
+The criteria and their evidence proved the work to you; they are not the report. Every line passes one test: would the user, knowing only this task's goal, see at once why it is there? No → cut it. A warning stays only when the user must change course now. When the next step is the user trying the work, `NEXT:` holds a `TEST IT:` block: numbered actions, then what the user should see, as bullets. Every other `NEXT:` line starts with who acts, `You:` or `Me:`. The user's steps come first; a step of the builder's that runs meanwhile says so.
+
+`DECIDE:` appears only when the task cannot finish without the user's answer. It names the choice by what the user would notice, what each option changes for them, the builder's pick, and what only the user knows that could change it. A choice that does not block the task, or that can only be named in code terms, is not a DECIDE.
 
 Wait. Do not mark DONE until the user confirms.
 

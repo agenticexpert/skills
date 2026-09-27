@@ -142,8 +142,12 @@ python .claude/skills/tasky/scripts/manage_tasks.py create <project> <roadmap> <
 
 - `--insert <n>` — places at position n in the order array (1-based).
 - No flag — appends to end.
+- In a milestone whose order array ends in a branch closing marker, both forms clamp above that marker — it stays last. Ask for nothing extra and adjust no position for it. Same clamp on `move`, at every insert position.
+- A task slug may not contain `--`; the double hyphen is reserved for branch markers.
 
 Creates `{slug}.md` with the standard template and registers in `project.json["tasks"]`.
+
+Creating tasks in a milestone other than the one holding the current DOING task also opens a branch — execute `branch.md` as part of the same creation.
 
 ---
 

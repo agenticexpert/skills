@@ -108,7 +108,7 @@ Fill in only what's needed. Leave sections blank if they add no value.
 
 - **Description** — what this task is. 1-2 sentences.
 - **Goal** — the outcome. One clear sentence: "Produces X" or "Enables Y."
-- **Criteria** — verifiable items. If Task is empty, Criteria is both the instruction and the gate. Write tight, checkable items — "Passes test X" beats "works correctly." Aim for 5–15; more → consider decomposing the task.
+- **Criteria** — verifiable items. If Task is empty, Criteria is both the instruction and the gate. Write tight, checkable items — "Passes test X" beats "works correctly." Aim for 5–15; more → consider decomposing the task. A criterion the user checks by hand must be checkable the moment the task's own work lands — every screen, command and file it needs exists by then. If it waits on a later task, it belongs in that task.
 - **References** — only paths that will actually be read during execution.
 - **Task** — the instruction in impact/execution form. What to do and what it achieves — not background. If populated, Criteria becomes the acceptance gate only.
 
