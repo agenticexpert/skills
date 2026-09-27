@@ -278,7 +278,9 @@ You do not need the server running to read the report or to export the resume fr
 
 ## For maintainers
 
-The report is one HTML file carrying a JSON island. That island is the durable product and the copy of record; the page around it is its working surface. The island is not a sidecar file — it lives inside the HTML, and every durable change rewrites it there.
+The report is one HTML file carrying a JSON island, plus a `<report>.overlay.json` sidecar beside it. The base HTML never changes: it is generated, served, and regenerated from source. Every durable change is written to the sidecar instead, keyed by item number and résumé path, and the served page applies it over the base before it renders. Base plus overlay is the copy of record.
+
+That split is what lets a review be re-run over a report you have already edited. The edits carry forward onto the fresh base, and any line where the new base disagrees with an edit is reported as a conflict rather than overwritten — `agui_bridge.py overlay --report <html>` lists them. Keep the sidecar beside its report; moving the HTML alone loses the edits.
 
 Everything that reads or changes a report goes through a bridge verb. Reading one row is `getContext`; changing it is `patchResume`. Those two calls are the entire interaction for a named row:
 
@@ -292,7 +294,7 @@ Reads are answered from the report file, so no browser tab need be open. Nothing
 See:
 
 - [`references/connections.md`](references/connections.md) for the bridge verbs, addressing, and durability sequence.
-- [`references/REPORT.md`](references/REPORT.md) for the report and workbench contract.
+- [`references/REPORT.md`](references/REPORT.md) for the report and workbench contract, and the overlay's shape, identity keys, and conflict rules.
 - [`references/READERS.md`](references/READERS.md) for the five hiring reads and decision roll-up.
 - [`references/CRAFT.md`](references/CRAFT.md) for the winning bar and craft grading.
 - [`references/REWRITE.md`](references/REWRITE.md) for truth-safe rewriting.

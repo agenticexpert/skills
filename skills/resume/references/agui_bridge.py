@@ -23,20 +23,29 @@ TWO LIFETIMES, deliberately split. The CONNECTION layer is ephemeral —
 registry, pending calls, and notes live in memory, and nothing about who
 was dialed in survives a stop; connections are inherently ephemeral and
 stay that way. The REPORT is not: launched with `--report <path>`, the
-bridge serves that one file AND owns it as the durable store. The served
-page and the file on disk are one artifact. Durable verbs (updateItem,
-patchResume) mutate the on-disk `#report-data` island here in Python —
-validate the mutated island against the file's own shipped
-`#report-contract` fail-closed (a breach writes nothing), atomic-write it
-(os.replace of a temp file — never a partial file on disk), then broadcast
-the same verb to every connected tab so the in-memory render matches disk.
-The report path is a runtime argument: nothing about a candidate is baked
-into this file.
+bridge serves that one file AND owns it as the durable store.
+
+The store is TWO FILES. The base `.html` is immutable — read, served, and
+re-rendered from source, never written by a durable verb — and the bridge
+owns a sidecar `<report>.overlay.json` beside it that carries every status
+and per-item edit, keyed by stable identity: item `n`, résumé section id,
+and `resumeDoc`/`linkedinDoc` dot-path, never a file offset. A durable verb
+(updateItem, patchResume) reads the base `#report-data` island, lays the
+overlay on top, mutates that in Python, validates the result against the
+base file's own shipped `#report-contract` fail-closed (a breach writes
+nothing), atomic-writes the rebuilt sidecar (os.replace of a temp file —
+never a partial file on disk), then broadcasts the same verb to every
+connected tab. Because the edits live outside the base, the report can be
+regenerated from source without losing them: each entry records the value
+it was written against, so an edit whose base moved surfaces as a conflict
+rather than a silent clobber. The report path is a runtime argument:
+nothing about a candidate is baked into this file.
 
 Usage:
     python3 agui_bridge.py serve [--report <report.html>] [--dir <static-dir>]
     python3 agui_bridge.py list
     python3 agui_bridge.py cmd [--to <target>] --verb <verb> --args '<json>'
+    python3 agui_bridge.py overlay --report <report.html>
     python3 agui_bridge.py stop
     python3 agui_bridge.py tools
 
@@ -374,18 +383,281 @@ class ReportError(Exception):
     it into `{"ok": false, "error": …}` and the file is left as it was."""
 
 
-class ReportStore:
-    """The hosted report file — the bridge's durable store.
+# The sidecar's own version, independent of the report contract: an overlay a
+# newer bridge wrote is refused rather than half-understood.
+OVERLAY_VERSION = 1
 
-    One HTML artifact on disk, addressed through its realpath (a `--report`
-    symlink resolves to the file it points at, so the write lands on the real
-    file and the link survives). Every mutation is the same sequence: read the
-    file, lift the `#report-data` island out by its anchor, mutate the parsed
-    JSON in Python, validate the result against the file's OWN shipped
+# The three identity spaces an overlay entry can be keyed in. `items` by item
+# `n`, `sections` by `sectionId`, `docs` by dot-path from the island root
+# (`resumeDoc.…`, `linkedinDoc.…`). No entry is ever keyed by a file offset or
+# by an items[] array index.
+OVERLAY_SCOPES = ("items", "sections", "docs")
+
+
+class OverlayStore:
+    """The sidecar that carries every edit, beside the base report.
+
+    `report.html` owns `report.overlay.json`. The base HTML is immutable: it is
+    read, served, and re-rendered from source, never written by a durable verb.
+    Each entry is one leaf — `{"base": <value the edit was made against>,
+    "value": <the edit>}` — addressed by stable identity, so regenerating the
+    base from source carries every edit forward and a base that moved under an
+    edit surfaces as a conflict instead of a silent clobber."""
+
+    def __init__(self, report_path):
+        self.report_path = os.path.realpath(report_path)
+        self.path = os.path.splitext(self.report_path)[0] + ".overlay.json"
+
+    def read(self):
+        """The overlay on disk, or `{}` when there is none."""
+        try:
+            with open(self.path, encoding="utf-8") as fh:
+                doc = json.load(fh)
+        except FileNotFoundError:
+            return {}
+        except (OSError, ValueError) as exc:
+            raise ReportError("overlay %s is unreadable: %s" % (self.path, exc))
+        if not isinstance(doc, dict):
+            raise ReportError("overlay %s is not an object" % self.path)
+        if doc and doc.get("overlayVersion") != OVERLAY_VERSION:
+            raise ReportError(
+                "overlay %s is version %s, not %s"
+                % (self.path, doc.get("overlayVersion"), OVERLAY_VERSION)
+            )
+        return doc
+
+    def write(self, doc):
+        _atomic_write(
+            self.path, json.dumps(doc, ensure_ascii=False, indent=1) + "\n"
+        )
+
+
+def _diff_leaves(base, new, prefix, out):
+    """Every leaf where `new` departs from `base`, keyed by dot-path.
+
+    Dicts recurse over the union of their keys, so an added or dropped field is
+    one leaf rather than a whole-object replacement. Lists recurse per index —
+    the same addressing an item's own `target` uses, so an accepted rewrite is
+    one leaf at `resumeDoc.experience.0.bullets.0` — but only while both sides
+    are the same length; a resized list is one whole value instead, so applying
+    an entry never has to insert into or delete from a list."""
+    if isinstance(base, dict) and isinstance(new, dict):
+        for key in sorted(set(base) | set(new)):
+            _diff_leaves(
+                base.get(key, _MISSING),
+                new.get(key, _MISSING),
+                prefix + [str(key)],
+                out,
+            )
+        return
+    if isinstance(base, list) and isinstance(new, list) and len(base) == len(new):
+        for index, value in enumerate(new):
+            _diff_leaves(base[index], value, prefix + [str(index)], out)
+        return
+    if base is _MISSING and new is _MISSING:
+        return
+    path = ".".join(prefix)
+    if base is _MISSING:
+        out[path] = {"value": new}
+    elif new is _MISSING:
+        out[path] = {"base": base}
+    elif base != new:
+        out[path] = {"base": base, "value": new}
+
+
+def _set_leaf(root, path, value):
+    """Set one dot-path leaf. A dict key is created when absent; a list index
+    must already exist. False when the path's parent does not resolve — the
+    anchor the edit was written against is gone."""
+    parts = str(path).split(".")
+    node = root
+    for part in parts[:-1]:
+        if isinstance(node, list):
+            try:
+                node = node[int(part)]
+            except (ValueError, IndexError):
+                return False
+        elif isinstance(node, dict):
+            if part not in node:
+                return False
+            node = node[part]
+        else:
+            return False
+    leaf = parts[-1]
+    if isinstance(node, list):
+        try:
+            node[int(leaf)] = value
+        except (ValueError, IndexError):
+            return False
+        return True
+    if isinstance(node, dict):
+        node[leaf] = value
+        return True
+    return False
+
+
+def _del_leaf(root, path):
+    parts = str(path).split(".")
+    parent = _get_path(root, ".".join(parts[:-1])) if len(parts) > 1 else root
+    if isinstance(parent, dict) and parts[-1] in parent:
+        del parent[parts[-1]]
+        return True
+    return isinstance(parent, dict)
+
+
+def _apply_leaves(root, leaves, scope, key, conflicts):
+    """Lay one identity's leaves onto the base, recording where they disagree.
+
+    Deterministic and total: the overlay's value always wins, so no edit is
+    lost, and every disagreement is appended to `conflicts` — `diverged` when
+    the base moved under the edit, `orphan` when the anchor the edit named is
+    no longer in the base."""
+    for path, entry in sorted(leaves.items()):
+        ref = {"scope": scope, "key": path if key is None else key, "path": path}
+        overlay_value = entry.get("value")
+        if not isinstance(root, dict) and not isinstance(root, list):
+            conflicts.append(dict(ref, kind="orphan", base=None, overlay=overlay_value))
+            continue
+        current = _get_path(root, path)
+        recorded = entry["base"] if "base" in entry else _MISSING
+        if "value" in entry:
+            landed = _set_leaf(root, path, entry["value"])
+        else:
+            landed = _del_leaf(root, path)
+        if not landed:
+            conflicts.append(dict(ref, kind="orphan", base=None, overlay=overlay_value))
+        elif current != recorded:
+            conflicts.append(
+                dict(
+                    ref,
+                    kind="diverged",
+                    base=None if current is _MISSING else current,
+                    overlay=overlay_value,
+                )
+            )
+
+
+def apply_overlay(base_data, overlay):
+    """Return `(merged island, conflicts)` — the base with every overlay edit
+    laid on top. The caller's island is never mutated."""
+    data = copy.deepcopy(base_data)
+    conflicts = []
+    if not overlay:
+        return data, conflicts
+    by_n = {
+        item.get("n"): item
+        for item in (data.get("items") or [])
+        if isinstance(item, dict)
+    }
+    for key, leaves in sorted((overlay.get("items") or {}).items()):
+        try:
+            n = int(key)
+        except (TypeError, ValueError):
+            n = None
+        _apply_leaves(by_n.get(n), leaves or {}, "item", key, conflicts)
+    by_section = {
+        section.get("sectionId"): section
+        for section in (data.get("resumeSections") or [])
+        if isinstance(section, dict)
+    }
+    for key, leaves in sorted((overlay.get("sections") or {}).items()):
+        _apply_leaves(by_section.get(key), leaves or {}, "section", key, conflicts)
+    _apply_leaves(data, overlay.get("docs") or {}, "doc", None, conflicts)
+    return data, conflicts
+
+
+def build_overlay(base_data, merged, prior=None, report_id=None):
+    """The sidecar that turns `base_data` into `merged`, rebuilt whole.
+
+    Recomputed from the base on every write, so the file always states the
+    complete delta and no incremental bookkeeping can drift. A leaf already
+    carried keeps the baseline it was FIRST written against, so a conflict
+    stays visible until the edit itself is reverted."""
+    prior = prior if isinstance(prior, dict) else {}
+    doc = {"overlayVersion": OVERLAY_VERSION, "reportId": report_id}
+    for scope in OVERLAY_SCOPES:
+        doc[scope] = {}
+    base_items = {
+        item.get("n"): item
+        for item in (base_data.get("items") or [])
+        if isinstance(item, dict)
+    }
+    for item in merged.get("items") or []:
+        if not isinstance(item, dict) or item.get("n") not in base_items:
+            continue
+        leaves = {}
+        _diff_leaves(base_items[item["n"]], item, [], leaves)
+        if leaves:
+            doc["items"][str(item["n"])] = leaves
+    base_sections = {
+        section.get("sectionId"): section
+        for section in (base_data.get("resumeSections") or [])
+        if isinstance(section, dict)
+    }
+    for section in merged.get("resumeSections") or []:
+        if not isinstance(section, dict) or section.get("sectionId") not in base_sections:
+            continue
+        leaves = {}
+        _diff_leaves(base_sections[section["sectionId"]], section, [], leaves)
+        if leaves:
+            doc["sections"][section["sectionId"]] = leaves
+    for root in ("resumeDoc", "linkedinDoc"):
+        _diff_leaves(base_data.get(root, _MISSING), merged.get(root, _MISSING), [root], doc["docs"])
+    for scope in ("items", "sections"):
+        for key, leaves in doc[scope].items():
+            old = ((prior.get(scope) or {}).get(key)) or {}
+            for path, entry in leaves.items():
+                if isinstance(old.get(path), dict) and "base" in old[path]:
+                    entry["base"] = old[path]["base"]
+    old_docs = prior.get("docs") or {}
+    for path, entry in doc["docs"].items():
+        if isinstance(old_docs.get(path), dict) and "base" in old_docs[path]:
+            entry["base"] = old_docs[path]["base"]
+    return doc
+
+
+def overlay_edit_count(overlay):
+    """How many leaves the sidecar carries."""
+    return sum(
+        len(leaves or {})
+        for scope in ("items", "sections")
+        for leaves in ((overlay.get(scope) or {}).values())
+    ) + len(overlay.get("docs") or {})
+
+
+def _overlay_island(html, overlay):
+    """Splice the overlay in beside `#report-data` — in the served RESPONSE, not
+    on disk. The page reads the base island, then applies `#report-overlay` on
+    top before it renders; a report opened straight off the filesystem carries
+    no overlay element and renders the base alone."""
+    if not overlay:
+        return html
+    match = _ISLAND_RE.search(html)
+    if match is None:
+        return html
+    island = _escape_island(json.dumps(overlay, ensure_ascii=False, indent=1))
+    tag = (
+        '\n<script type="application/json" id="report-overlay">\n%s\n</script>\n'
+        % island
+    )
+    return html[: match.end()] + tag + html[match.end() :]
+
+
+class ReportStore:
+    """The hosted report — an immutable base file plus the sidecar it owns.
+
+    The base HTML is addressed through its realpath (a `--report` symlink
+    resolves to the file it points at) and is never written by a durable verb:
+    it is read, served, and freely re-rendered from source. Every edit lands in
+    `<report>.overlay.json` instead, keyed by stable identity, so a fresh render
+    of the base carries every prior edit forward.
+
+    Every mutation is the same sequence: read the base `#report-data` island,
+    lay the overlay on top to get the report's current state, mutate that in
+    Python, validate the result against the base file's OWN shipped
     `#report-contract` (the same gate the page runs at load — fail closed),
-    then re-splice ONLY the island's text node back and swap the file in with
-    os.replace. Template markup, the contract block, and every byte outside the
-    island are carried through untouched.
+    rebuild the overlay from base-versus-mutated, and swap the sidecar in with
+    os.replace. The base file's bytes are untouched by all of it.
 
     The lock serializes writers: concurrent commands can't interleave a
     read-modify-write and lose one of the two.
@@ -393,29 +665,24 @@ class ReportStore:
 
     def __init__(self, path):
         self.path = os.path.realpath(path)
+        self.overlay = OverlayStore(self.path)
         self._lock = threading.Lock()
 
     def read_bytes(self):
-        """The file as served — the same bytes a durable write produces."""
+        """The base file's bytes — the immutable artifact, overlay excluded."""
         with open(self.path, "rb") as fh:
             return fh.read()
 
-    def report_id(self):
-        """Non-PII page identity used to bind a tab/command to this store."""
-        html = self.read_bytes().decode("utf-8")
-        match = _ISLAND_RE.search(html)
-        if match is None:
-            return None
-        try:
-            data = json.loads(match.group(2))
-        except ValueError:
-            return None
-        meta = data.get("meta") if isinstance(data.get("meta"), dict) else {}
-        value = meta.get("reportId")
-        return value if isinstance(value, str) and value else None
+    def serve_bytes(self):
+        """The base file with the overlay spliced in for the page to apply."""
+        body = self.read_bytes()
+        overlay = self.overlay.read()
+        if not overlay:
+            return body
+        return _overlay_island(body.decode("utf-8"), overlay).encode("utf-8")
 
-    def validate(self):
-        """Validate the hosted artifact before serving or reusing it."""
+    def _read(self):
+        """`(html, base island)` — the base file, parsed, overlay not applied."""
         try:
             html = self.read_bytes().decode("utf-8")
         except (OSError, UnicodeError) as exc:
@@ -424,9 +691,31 @@ class ReportStore:
         if match is None:
             raise ReportError("no #report-data island in %s — not a report page" % self.path)
         try:
-            data = json.loads(match.group(2))
+            return html, json.loads(match.group(2))
         except ValueError as exc:
             raise ReportError("#report-data is not valid JSON: %s" % exc)
+
+    def effective(self):
+        """`(merged island, conflicts)` — the report's current state: the base
+        island with every overlay edit laid on top."""
+        _, base = self._read()
+        return apply_overlay(base, self.overlay.read())
+
+    def report_id(self):
+        """Non-PII page identity used to bind a tab/command to this store."""
+        try:
+            _, base = self._read()
+        except ReportError:
+            return None
+        meta = base.get("meta") if isinstance(base.get("meta"), dict) else {}
+        value = meta.get("reportId")
+        return value if isinstance(value, str) and value else None
+
+    def validate(self):
+        """Validate the hosted artifact — base plus overlay, the state the page
+        will render — before serving or reusing it."""
+        html, base = self._read()
+        data, _ = apply_overlay(base, self.overlay.read())
         errs = validate_island(data, self._contract(html))
         if errs:
             raise ReportError("contract breach: %s" % "; ".join(errs))
@@ -436,17 +725,9 @@ class ReportStore:
         """Run a durable verb end-to-end. Returns the applied change on
         success; raises ReportError having written nothing on any failure."""
         with self._lock:
-            html = self.read_bytes().decode("utf-8")
-            match = _ISLAND_RE.search(html)
-            if match is None:
-                raise ReportError(
-                    "no #report-data island in %s — not a report page"
-                    % self.path
-                )
-            try:
-                data = json.loads(match.group(2))
-            except ValueError as exc:
-                raise ReportError("#report-data is not valid JSON: %s" % exc)
+            html, base = self._read()
+            prior = self.overlay.read()
+            data, _ = apply_overlay(base, prior)
 
             if verb == "applyRewrite":  # advertised alias; the page aliases it too
                 verb = "acceptRewrite"
@@ -470,7 +751,10 @@ class ReportStore:
                 raise ReportError(
                     "contract breach — nothing written: %s" % "; ".join(errs)
                 )
-            self._write(html, match, data)
+            meta = base.get("meta") if isinstance(base.get("meta"), dict) else {}
+            self.overlay.write(
+                build_overlay(base, data, prior, meta.get("reportId"))
+            )
             return written
 
     def _contract(self, html):
@@ -486,22 +770,6 @@ class ReportStore:
             return json.loads(match.group(1))
         except ValueError as exc:
             raise ReportError("#report-contract is not valid JSON: %s" % exc)
-
-    def _write(self, html, match, data):
-        """Re-splice the island and swap the file in atomically.
-
-        Only group 2 — the island's text node — is replaced; the opening tag,
-        the closing tag, and every other byte of the document are the original
-        ones. The two sequences that let text escape a <script> element are
-        neutralized as JSON escapes — `</` → `<\\/` and `<!--` → `\\u003c!--`,
-        both identical to the browser on parse — so no résumé text can close
-        the island early or flip the tokenizer into its escaped states. The
-        temp file is written in the report's own directory and os.replace'd
-        onto it: a reader sees the old file or the new one, never a partial.
-        """
-        island = _escape_island(json.dumps(data, ensure_ascii=False, indent=1))
-        merged = html[: match.start(2)] + "\n" + island + "\n" + html[match.end(2) :]
-        _atomic_write(self.path, merged)
 
 
 def verb_arg(args, index, key):
@@ -1717,17 +1985,22 @@ TOOL_DIRECTORY = {
             "template: validate the island against the template's shipped "
             "#report-contract (fail-closed — on breach, write nothing and exit 1), "
             "splice it into a verbatim template copy, and write --out atomically. "
-            "With --serve, host the written file via serve --report (session-scoped).",
+            "Re-rendering over an existing report keeps the sidecar beside it: the "
+            "edits carry forward and every leaf whose base moved is printed as a "
+            "conflict. With --serve, host the written file via serve --report "
+            "(session-scoped).",
         },
         "serve": {
             "signature": "serve [--report <html-file>] [--dir <static-dir>] [--idle N] [--port N]",
             "semantics": "Run the bridge on localhost:8917 unless --port names "
             "another; one report per port, so a second report served at the "
             "same time needs its own --port, and every client command reaching "
-            "it needs the same --port. Host the --report"
-            "file at / and its basename (durable verbs write it in place, "
-            "#report-contract-gated), serve --dir static files to report pages, "
-            "and self-exit after N seconds of inactivity (default 300).",
+            "it needs the same --port. Host the --report "
+            "file at / and its basename with its overlay spliced in for the page "
+            "to apply — the base HTML is immutable and durable verbs write "
+            "<report>.overlay.json instead, #report-contract-gated — serve --dir "
+            "static files to report pages, and self-exit after N seconds of "
+            "inactivity (default 300).",
         },
         "list": {
             "signature": "list",
@@ -1749,6 +2022,14 @@ TOOL_DIRECTORY = {
             "Read-only on the report, needs no running bridge, validates before emitting, "
             "and exits 2 when the requested document is absent. Exported résumés carry "
             "contact fields — local only.",
+        },
+        "overlay": {
+            "signature": "overlay --report <html> [--format text|json]",
+            "semantics": "Print the sidecar beside a report: how many edits it "
+            "carries and every leaf where the base has moved under a saved edit "
+            "(diverged) or lost the anchor it named (orphan). The saved edit always "
+            "stands; exits 1 when any conflict is open. Read-only on both files and "
+            "needs no running bridge.",
         },
         "stop": {
             "signature": "stop",
@@ -1801,8 +2082,10 @@ TOOL_DIRECTORY = {
         },
         "/ (report host)": {
             "signature": "GET / or /<report basename>",
-            "semantics": "Serve the --report HTML file byte-identical (the "
-            "durable artifact durable verbs write to); absent --report, 404.",
+            "semantics": "Serve the immutable --report HTML with its overlay "
+            "spliced in beside #report-data as #report-overlay, which the page "
+            "applies before it renders; the base file's own bytes are never "
+            "changed. Absent --report, 404.",
         },
         "static fallback": {
             "signature": "GET <other path>",
@@ -1828,8 +2111,8 @@ TOOL_DIRECTORY = {
         },
         "setStatus": {
             "signature": 'setStatus(n, "open"|"done"|"ignore")',
-            "semantics": "Durably set item n's status; disk is validated and "
-            "atomically replaced before any connected page repaints.",
+            "semantics": "Durably set item n's status; the overlay is validated "
+            "and atomically replaced before any connected page repaints.",
         },
         "patchResume": {
             "signature": "patchResume(path, text)",
@@ -1860,7 +2143,8 @@ TOOL_DIRECTORY = {
             "semantics": "Merge patch's fields into item n's content and repaint "
             "its row; refuses n and status (n is the address, status has its own "
             "verb). A durable verb: through a --report bridge it writes the "
-            "on-disk island #report-contract-gated (fail-closed), then broadcasts.",
+            "report's overlay sidecar #report-contract-gated (fail-closed), "
+            "leaving the base HTML untouched, then broadcasts.",
         },
         "acceptRewrite": {
             "signature": "acceptRewrite(n, index=0)",
@@ -2273,12 +2557,12 @@ class Bridge:
         }}
 
     def _durable(self, verb, args):
-        """Write the report, then broadcast the same verb to the open tabs.
+        """Write the overlay, then broadcast the same verb to the open tabs.
 
-        Fail closed: a ReportError means the file on disk is untouched and the
-        pages never hear about it. On success the broadcast carries the page's
-        matching in-memory handler, so an open tab's render converges on what
-        the file now says; the broadcast's own results ride along under
+        Fail closed: a ReportError means both files on disk are untouched and
+        the pages never hear about it. On success the broadcast carries the
+        page's matching in-memory handler, so an open tab's render converges on
+        what the sidecar now says; the broadcast's own results ride along under
         `broadcast` but cannot un-write the disk — `ok` reports the WRITE.
         """
         if self.store is None:
@@ -2297,6 +2581,7 @@ class Bridge:
             "verb": verb,
             "written": written,
             "report": self.store.path,
+            "overlay": self.store.overlay.path,
         }
         resolution = self.resolve("all")
         if "error" not in resolution:  # no tabs connected — the write still stands
@@ -2637,19 +2922,19 @@ class BridgeHandler(BaseHTTPRequestHandler):
     def _handle_static(self, path):
         """GET fallback: the hosted report, else a file from --dir.
 
-        The `--report` file answers at `/` and at its own basename — the page
-        the bridge serves and the file it durably rewrites are one artifact, so
-        a reload after a durable write shows exactly what was written. Beyond
+        The `--report` file answers at `/` and at its own basename, carrying its
+        overlay spliced in beside the data island, so a reload after a durable
+        write shows exactly what was written. The base file's own bytes go out
+        unchanged — the overlay element exists only in the response. Beyond
         that, --dir files stream back byte-identical. No --report and no --dir,
-        an escape from the --dir root, or a non-file all answer 404. The bytes
-        go out exactly as read: no templating, no charset rewriting.
+        an escape from the --dir root, or a non-file all answer 404.
         """
         store = self.bridge.store
         rel_path = unquote(path).lstrip("/")
         if store is not None and rel_path in ("", os.path.basename(store.path)):
             try:
-                body = store.read_bytes()
-            except OSError:
+                body = store.serve_bytes()
+            except (OSError, ReportError):
                 self._send_json(404, {"error": "report unreadable: %s" % store.path})
                 return
             self._send_bytes(body, "text/html")
@@ -2859,6 +3144,7 @@ def run_render(args):
         % (args.out, len(items), now, "" if now == was else " (migrated from %s)" % was),
         flush=True,
     )
+    _report_overlay_state(ReportStore(args.out), "[bridge]")
     if args.serve:
         return run_serve(
             argparse.Namespace(
@@ -2866,6 +3152,77 @@ def run_render(args):
             )
         )
     return 0
+
+
+def _overlay_state(store):
+    """`(overlay, conflicts)` for a report, or `(None, [])` when the base is
+    unreadable — an inspection never fails the caller it reports to."""
+    try:
+        overlay = store.overlay.read()
+        _, base = store._read()
+    except (ReportError, OSError):
+        return None, []
+    if not overlay:
+        return overlay, []
+    _, conflicts = apply_overlay(base, overlay)
+    return overlay, conflicts
+
+
+def _report_overlay_state(store, prefix):
+    """Print what the sidecar beside a report carries and where it disagrees
+    with the base, so an edit carried across a regenerated base is visible at
+    the moment the base is written or hosted."""
+    overlay, conflicts = _overlay_state(store)
+    if not overlay:
+        return conflicts
+    print(
+        "%s overlay %s — %d edits carried forward%s"
+        % (
+            prefix,
+            store.overlay.path,
+            overlay_edit_count(overlay),
+            "" if not conflicts else ", %d conflict(s) with this base" % len(conflicts),
+        ),
+        flush=True,
+    )
+    for conflict in conflicts:
+        print(
+            "%s   conflict %s %s %s — base now %s; the saved edit stands"
+            % (
+                prefix,
+                conflict["kind"],
+                conflict["scope"],
+                conflict["path"] if conflict["scope"] == "doc" else "%s %s" % (conflict["key"], conflict["path"]),
+                json.dumps(conflict["base"], ensure_ascii=False),
+            ),
+            flush=True,
+        )
+    return conflicts
+
+
+def run_overlay(args):
+    """Print the sidecar beside a report: what it carries, and every leaf where
+    the base has moved under a saved edit. Read-only on both files, and
+    local-only — no bridge, no socket, no page."""
+    store = ReportStore(args.report)
+    if not os.path.isfile(store.path):
+        sys.stderr.write("[bridge] --report is not a file: %s\n" % args.report)
+        return 2
+    try:
+        overlay = store.overlay.read()
+        _, base = store._read()
+    except ReportError as exc:
+        sys.stderr.write("[bridge] %s\n" % exc)
+        return 2
+    _, conflicts = apply_overlay(base, overlay) if overlay else (None, [])
+    if args.format == "json":
+        print(json.dumps({"overlay": store.overlay.path, "edits": overlay_edit_count(overlay), "conflicts": conflicts, "entries": overlay}, ensure_ascii=False, indent=1))
+        return 1 if conflicts else 0
+    if not overlay:
+        print("[bridge] no overlay beside %s — the base carries every value" % store.path)
+        return 0
+    _report_overlay_state(store, "[bridge]")
+    return 1 if conflicts else 0
 
 
 def run_serve(args):
@@ -2937,10 +3294,11 @@ def run_serve(args):
     print("[bridge] serving on http://localhost:%d" % PORT, flush=True)
     if store:
         print(
-            "[bridge] hosting report %s — served at / and durably rewritten by "
-            "%s" % (store.path, ", ".join(DURABLE_VERBS)),
+            "[bridge] hosting report %s — served at /, immutable; %s write "
+            "%s" % (store.path, ", ".join(DURABLE_VERBS), store.overlay.path),
             flush=True,
         )
+        _report_overlay_state(store, "[bridge]")
     if static_dir:
         print("[bridge] static files from %s" % static_dir, flush=True)
     # Self-describing tool directory — the same JSON GET /tools and the `tools`
@@ -3105,9 +3463,10 @@ def linkedin_markdown(doc):
 
 
 def run_export(args):
-    """Read the report's island and write one document back out. Read-only on
-    the report, and local-only: no bridge, no network, no page involved, so an
-    export works whether or not a bridge is running."""
+    """Read the report's island — base plus overlay, the state the page renders
+    — and write one document back out. Read-only on both files, and local-only:
+    no bridge, no network, no page involved, so an export works whether or not
+    a bridge is running."""
     try:
         data = ReportStore(args.report).validate()
     except ReportError as exc:
@@ -3250,6 +3609,18 @@ def main(argv=None):
     export.add_argument(
         "--out", metavar="PATH", help="write here instead of stdout"
     )
+    overlay = commands.add_parser(
+        "overlay",
+        help="print the sidecar beside a report — the edits it carries and "
+        "every leaf where the base has moved under one",
+    )
+    overlay.add_argument("--report", required=True, metavar="PATH", help="the base report page")
+    overlay.add_argument(
+        "--format",
+        default="text",
+        choices=("text", "json"),
+        help="human lines or the whole sidecar as JSON (default text)",
+    )
     stop = commands.add_parser("stop", help="stop the running bridge")
     tools = commands.add_parser(
         "tools",
@@ -3257,7 +3628,7 @@ def main(argv=None):
         "document serve prints at start and GET /tools returns",
     )
     # Every subcommand that binds or reaches a bridge takes the port. `export`
-    # does not: it reads the report file directly and never opens a socket.
+    # and `overlay` do not: they read the files directly and never open a socket.
     for sub in (render, serve, list_, cmd, stop, tools):
         sub.add_argument(
             "--port",
@@ -3279,6 +3650,8 @@ def main(argv=None):
         return run_cmd(args)
     if args.command == "export":
         return run_export(args)
+    if args.command == "overlay":
+        return run_overlay(args)
     if args.command == "stop":
         return run_stop(args)
     if args.command == "tools":

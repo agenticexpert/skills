@@ -134,6 +134,8 @@ Never reproduce, retype, or reconstruct either document from conversation contex
 
 Every read of and change to a served report goes through a bridge verb — `getContext`, `getItem`, `listRubric`, `getRubricContext`, `exportData` to read; `patchResume`, `patchLinkedin`, `setStatus`, `updateItem`, `acceptRewrite`, `rereadSection` to write. Never parse, regex, or hand-edit the island, and never load the bridge as a module to reach its internals. A named row is one read and one write.
 
+Edits land in the sidecar `<report>.overlay.json`, never in the base `.html`. Re-run the review over an existing report path rather than starting a new one: the saved edits carry forward, and where the fresh base disagrees with one the conflict is reported instead of overwritten. Read the conflicts with `python3 references/agui_bridge.py overlay --report <report.html>` and resolve each one through a verb. Keep the sidecar beside the report it belongs to — it carries candidate PII, stays local, and is never published. Moving or renaming the report without its sidecar loses every edit.
+
 The final hand-back names the report link, the Must-Talk rubric score, the first deciding gate, and the smallest next action. When the ask names a rubric, the Must-Talk 0–4 rubric — and the 0–5 demonstrated-skill rubric under a JD — is that rubric; score it and say so.
 
 ## Workbench

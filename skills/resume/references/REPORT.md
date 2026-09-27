@@ -351,7 +351,38 @@ When present it renders in its own view behind its own tab, never inside the ré
 - `rereadSection(sectionId,patch)`: `patch` sets only `verdict,status,assessment`; the verb also sets `staleness: "fresh"`. `staleness` is system-managed and cannot be set through the patch.
 - `patchLinkedin(path,text)`: sets one existing `linkedinDoc.*` node. Rejected when the island carries no `linkedinDoc`. `acceptRewrite` follows whichever prefix the item's own `target` names.
 
-Each performs locked read → mutate → validate → atomic write → broadcast. Failure changes nothing. The written island is the copy of record; the `--island` build input and any source document are never written back.
+Each performs locked read → merge overlay → mutate → validate → atomic write of the overlay → broadcast. Failure changes nothing. Base plus overlay is the copy of record; the base `.html`, the `--island` build input, and any source document are never written back.
+
+## Overlay
+
+The base report `.html` is immutable. Every status and per-item edit lives in the sidecar `<report>.overlay.json`, which the hosting bridge owns and rewrites.
+
+Each entry is one leaf, `{"base": <the value the edit was made against>, "value": <the edit>}`, filed under one of three identity spaces — never a file offset or an `items[]` array index:
+
+- `items`: keyed by item `n`, then by dot-path inside the item (`status`, `reason`, `ctx.decisions`).
+- `sections`: keyed by `resumeSections[].sectionId`, then by field.
+- `docs`: keyed by dot-path from the island root (`resumeDoc.experience.0.bullets.0`, `linkedinDoc.headline`).
+
+A list recurses per index while both sides hold the same number of entries, and is one whole value when the count differs. A dict recurses over the union of its keys. `overlayVersion` is `1`; any other value is refused.
+
+The sidecar is rebuilt whole from base-versus-current on every write. A leaf already carried keeps the baseline it was first written against, so a conflict stays visible until the edit itself is reverted.
+
+**Merge.** The host serves the base HTML with the sidecar spliced in beside `#report-data` as `#report-overlay`; the base file's own bytes never change. The page reads the base island, applies the overlay on top, and only then validates and renders. A report opened straight off the filesystem carries no overlay element and renders the base alone.
+
+The merge is deterministic and total: the saved edit always wins, and every disagreement is reported rather than dropped.
+
+- `diverged`: the base moved under a saved edit. The edit stands; the conflict carries the value the base now holds.
+- `orphan`: the base no longer carries the element the edit named.
+
+The report renders open conflicts as their own section, directly below the move-forward line. Nothing may precede that line.
+
+## Overlay inspection
+
+```bash
+python3 references/agui_bridge.py overlay --report report.html [--format text|json]
+```
+
+Prints what the sidecar carries and every open conflict against the current base. Exits 1 while any conflict is open. Read-only on both files, needs no bridge.
 
 ## Export
 
@@ -368,3 +399,5 @@ python3 references/agui_bridge.py render --island report.json --out report.html 
 ```
 
 The renderer accepts `2.4.0` directly and migrates older versions forward on a deep copy before validating. From `2.3.0` it synthesizes `resumeSections` — one `unread`/`fresh` whole-read per section derived from each item's `ctx.path` prefix — and stamps every item's `sectionId`. From `2.2.0` it also inserts the default `rubric: []`. From `2.1.0` it additionally inserts the default `untested` `parseStatus`. From `2.0.0` it additionally inserts an unknown target decode and assigns each legacy item `{scope:"atom",visibility:"hotspot"}`. It stamps the copy `2.4.0` and validates it. The caller’s object and old standalone HTML remain unchanged. Unsupported versions fail closed. Candidate data stays local.
+
+Re-render freely over an existing report: the sidecar beside it is untouched, every saved edit carries forward onto the fresh base, and each leaf whose base moved is printed as a conflict.

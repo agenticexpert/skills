@@ -23,19 +23,21 @@ The bridge hosts one report. `/heartbeat` returns:
 
 Durable verbs are `updateItem`, `setStatus`, `acceptRewrite`, `patchResume`, `patchLinkedin`, and `rereadSection`.
 
-The durable store is the `#report-data` island inside `report.html` — that island is the JSON, and every durable verb rewrites it in place. The `--island` file passed to `render` is build input only and is never written back; neither is any source document the island was built from. `exportData` returns the current island for saving as a standalone file.
+The durable store is two files. The base `report.html` and its `#report-data` island are immutable — read, served, and re-rendered from source, never written by a durable verb. Every edit lands in the sidecar `report.overlay.json` beside it, keyed by item `n`, `resumeSections[].sectionId`, and `resumeDoc`/`linkedinDoc` dot-path. The report's current state is base plus overlay: the host serves the base with the sidecar spliced in as `#report-overlay`, and the page applies it before it renders.
+
+Re-render the base freely — the saved edits carry forward onto it. Where a fresh base disagrees with a saved edit, the edit stands and the disagreement is reported as a conflict; `overlay --report <html>` prints them and exits 1 while any is open. The `--island` file passed to `render` is build input only and is never written back; neither is any source document the island was built from. `exportData` returns the current island for saving as a standalone file.
 
 Every durable command performs:
 
 1. lock;
-2. read the hosted file;
-3. parse its `#report-data`;
+2. read the base file and parse its `#report-data`;
+3. apply the overlay on top;
 4. mutate in memory;
-5. validate against that file’s `#report-contract`;
-6. write a sibling temporary file and `os.replace` it;
+5. validate against that base file’s `#report-contract`;
+6. rebuild the overlay from base-versus-mutated, write a sibling temporary file, and `os.replace` it onto the sidecar;
 7. broadcast to connected pages.
 
-Failure before step 6 changes nothing. The page must not repaint, write localStorage, or close a draft until the bridge reports success.
+Failure before step 6 changes nothing, and the base file changes at no step. The page must not repaint, write localStorage, or close a draft until the bridge reports success.
 
 ## Item verbs
 
