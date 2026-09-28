@@ -96,7 +96,7 @@ Ask only what's needed to reach the target detail level:
 **To make it Detailed:**
 - What's the instruction? What exactly should be built? (surfaces Task section)
 - Are there references — specs, designs, prior tasks — that inform this?
-- What does it depend on?
+- What does it depend on? Only a task that is not DONE is a dependency.
 
 Write the answers into the task file. Don't ask for information you can infer from context.
 
@@ -109,7 +109,7 @@ Fill in only what's needed. Leave sections blank if they add no value.
 - **Description** — what this task is. 1-2 sentences.
 - **Goal** — the outcome. One clear sentence: "Produces X" or "Enables Y."
 - **Criteria** — verifiable items. If Task is empty, Criteria is both the instruction and the gate. Write tight, checkable items — "Passes test X" beats "works correctly." Aim for 5–15; more → consider decomposing the task. A criterion the user checks by hand must be checkable the moment the task's own work lands — every screen, command and file it needs exists by then. If it waits on a later task, it belongs in that task.
-- **References** — only paths that will actually be read during execution.
+- **References** — only paths that will actually be read during execution, and every file any line of the task cites or draws a fact from.
 - **Task** — the instruction in impact/execution form. What to do and what it achieves — not background. If populated, Criteria becomes the acceptance gate only.
 
 ---

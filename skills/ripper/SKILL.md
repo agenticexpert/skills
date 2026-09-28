@@ -77,8 +77,8 @@ floor is constant:
   care", "too complex").
 - Every finding traces to a real source (subject, brief, conversation, sourced
   neighbor row); unsourced → cut. Uncertain → tag `assm` + a verification step;
-  tone never substitutes for evidence, and `assm` stays visible everywhere the
-  finding appears — findings, Top Cuts, Do Next.
+  tone never substitutes for evidence, and `assm` stays visible, as "unverified",
+  everywhere the finding appears — findings, Top Cuts, Do Next.
 - Critique the work, never persons/teams/orgs. A finding that only stands by
   attacking a person → rewrite as critique of the work or cut.
 - Reject: `fair` without persona + moment + cause · `critical` tracing only to
@@ -97,7 +97,8 @@ already knows, overlapping the subject on a visible axis (vocabulary, category,
 feature, distribution, audience). Resemblance triggers inspection — never a
 verdict by itself. A comparison is REQUIRED when a finding depends on
 resemblance, the audience likely knows the neighbor, confusion risk drives a
-1–4 grade, or depth is `verdict`. Then emit:
+1–4 grade, or depth is `verdict`. Then the finding carries this block in
+`expand` and the disk render, and one plain line in the inline report:
 
 ```
 Neighbor: <name> — they sell X; subject is Y.
@@ -119,8 +120,9 @@ No verified COG → grade capped at 5–6.
 
 ### 6. The finding contract — what / why / who / do
 
-Every finding is EXACTLY these four lines under a graded heading. Print them; a
-finding missing a line does not exist.
+Every finding carries all four parts under a graded heading; a finding missing
+one does not exist. This is the finding's content — the report renders it in
+plain words per `references/REPORT.md`, not as labeled lines.
 
 ```
 ### [<grade>] <persona> @ <A|B> — <short summary>
@@ -172,28 +174,18 @@ Synthesis — printed after the findings:
 
 ### 8. Output
 
-- Inline report is the default deliverable: masthead line (subject · depth ·
-  intensity · personas · findings · date) → dev-stage caveat if unreleased →
-  Top Cuts → findings sorted 1→10 in the four-line contract → Pattern → Do
-  Next. Template: `references/REPORT.md`.
+- Inline report is the default deliverable: the one-line read → run line →
+  dev-stage caveat if unreleased → Top cuts → findings sorted 1→10 → Behind
+  most of these (Pattern + Anti-confirmation) → Do next. Template and wording
+  rules: `references/REPORT.md`.
 - Disk render at `verdict` depth or when the user asks — **HTML by default**
   (`agents/reports/ripper/<UTC-timestamp>.html`); `.md` (same basename) only
   when the user asks for it — both contracts in REPORT.md. Cannot write files
   when a render is required → emit inline and say why. Never silently skip a
   required render.
 - **More on ask:** `expand finding N` → full anatomy per REPORT.md's expansion
-  schema (voice quote, trace detail, retention surface, win/risk, neighbor
-  rows). The report stays lean because depth is one ask away.
-
-### 9. Conformance — refuse to emit if any fails
-
-- [ ] Masthead: brief confirmed, depth + intensity declared.
-- [ ] Every finding = what/why/who/do, none empty, printed under a graded heading.
-- [ ] Every `why` carries an evidence tag AND a grade bracket.
-- [ ] High-impact `assm` → its `do` is a verification step.
-- [ ] Findings sorted 1 → 10; Top Cuts show three views.
-- [ ] Neighbor-dependent findings carry the sourced neighbor block.
-- [ ] No person/team/org attacked; dev-stage caveat present iff unreleased.
+  schema (persona, horizon, evidence tag, voice quote, trace, retention
+  surface, win/risk, grade bracket, neighbor rows). The report stays lean because depth is one ask away.
 
 ## Operating principles
 
@@ -206,4 +198,4 @@ the mood. Harsh on the work, neutral on the people.
 
 First-principles analysis of *this specific situation* overrides any rule —
 note the deviation. Load-bearing, never skip: subject brief · personas × logics
-· the four-line contract · grade caps · conformance.
+· the finding contract · grade caps.

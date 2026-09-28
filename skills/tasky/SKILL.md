@@ -91,9 +91,10 @@ EXECUTE: references/brainstorm.md
 
 ## Always
 
+- Every later message in the session that reports work done, asks what's next or where things stand, or changes tracked work re-reads the board with the scripts before answering. Never answer from an earlier view of the board.
 - **Every reply that ends work on a task — finished, paused, or stopped — takes the form in `references/report.md`:** `STATUS:` first. Every line passes one test: would the user, knowing only this task's goal, see at once why it is there? No → cut it.
 - Every other tasky reply follows the same reader rule. Plain conversation and code stay untouched.
-- Never echo or repeat script output in text. The terminal already shows it.
+- When the user asks to see a list or view, the reply shows all of it, one line per item with its status, never grouped or ranged. The user does not see script output. Otherwise, never repeat script output in text.
 - Derive state from scripts. Never guess project structure.
 - Resolve natural-language names to directory slugs before acting. Surface the resolution: "I'm treating 'auth module' as the `auth` milestone."
 - Dependencies are blockers. Never let a task or milestone start if a declared dependency is not DONE.

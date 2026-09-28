@@ -433,6 +433,11 @@ def cmd_add_dep(args):
         )
         sys.exit(1)
 
+    if read_task_status(os.path.join(mpath, f"{args.dep_slug}.md")).upper() == "DONE":
+        print(f"Error: '{args.dep_slug}' is DONE. Only a task that is not DONE is a dependency.",
+              file=sys.stderr)
+        sys.exit(1)
+
     # Write dependency into task file
     task_path = os.path.join(mpath, f"{args.slug}.md")
     with open(task_path) as f:

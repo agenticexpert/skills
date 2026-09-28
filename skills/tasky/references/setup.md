@@ -79,22 +79,23 @@ Route every action on the data root (`{root}/`) through a `references/*.md` play
 
 ---
 
-## Step 5 — Install the report hook
+## Step 5 — Install the hooks
 
-`{skills}/hooks/tasky-report-gate` (Stop) enforces the report form. It sends each task
-hand-back to a fresh reviewer that cuts every line the user would not see the point of,
-and rejects any reply that shows tasky internals to the user. Every other channel is
-advisory and loses to whatever is nearer the reply.
+- `{skills}/hooks/tasky-route` (UserPromptSubmit) puts the routing rule next to every prompt, so a follow-up such as "done" or "what's next" goes through tasky and re-reads the board.
+- `{skills}/hooks/tasky-report-gate` (Stop) enforces the report form. It sends each task hand-back to a fresh reviewer that cuts every line the user would not see the point of, and rejects any reply that shows tasky internals to the user.
 
 Ask which scope the user wants:
 
-> Enforce the report form in this project only, or everywhere?
+> Install tasky's hooks in this project only, or everywhere?
 
-**This project** — add to `.claude/settings.json`, leaving the script where it is:
+**This project** — add to `.claude/settings.json`, leaving the scripts where they are:
 
 ```json
 {
   "hooks": {
+    "UserPromptSubmit": [{"hooks": [
+      {"type": "command", "command": "$CLAUDE_PROJECT_DIR/{skills}/hooks/tasky-route"}
+    ]}],
     "Stop": [{"matcher": ".*", "hooks": [
       {"type": "command", "command": "$CLAUDE_PROJECT_DIR/{skills}/hooks/tasky-report-gate"}
     ]}]
@@ -102,13 +103,13 @@ Ask which scope the user wants:
 }
 ```
 
-**Everywhere** — copy the script to `~/.claude/hooks/` and use the same block in
+**Everywhere** — copy both scripts to `~/.claude/hooks/` and use the same block in
 `~/.claude/settings.json` with `~/.claude/hooks/` in place of the `$CLAUDE_PROJECT_DIR`
-path. It stays inert in repos with no `tasky.md`.
+path. Both stay inert in repos with no `tasky.md`.
 
 Merge into the existing `hooks` object; never replace it, and never add a command twice.
-The gate allows exactly one rewrite and never measures fenced code. To switch it off
-without unwiring it, set `TASKY_REPORT_FORM=off` in the environment.
+The gate allows exactly one rewrite and never measures fenced code. To switch either off
+without unwiring it, set `TASKY_ROUTE=off` or `TASKY_REPORT_FORM=off` in the environment.
 
 ---
 

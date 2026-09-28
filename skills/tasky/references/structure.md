@@ -184,7 +184,7 @@ Flow:
 
 ```
 
-Leave Dependencies empty if none. Description, Goal, Criteria, and Task start empty — they fill in during execution.
+Leave Dependencies empty if none. List only tasks that are not DONE. Description, Goal, Criteria, and Task start empty — they fill in during execution.
 
 **Body rules (validate enforces these):**
 - `## Criteria` must contain at least one checkbox item, and every box must be checked before status can reach READY or DONE
@@ -242,7 +242,7 @@ python .claude/skills/tasky/scripts/manage_milestones.py add-dep <...path...> <s
 python .claude/skills/tasky/scripts/manage_tracks.py add-dep <project> <roadmap> <track> <dep-track>
 ```
 
-Dependencies are always scoped to siblings. Validate before writing.
+Dependencies are always scoped to siblings. Validate before writing. Never add a DONE task as a dependency.
 
 ---
 

@@ -131,7 +131,7 @@ Numbers run sequentially across all three sections. Omit any section with no ite
 
 ## Interpreting Results
 
-Present results plainly. Don't over-narrate. If the user asks "what's next?" give them the next task and its milestone/track context — one thing, not a list of options.
+Present results plainly. Don't over-narrate. The user does not see script output: "show the tasks", "list all X" and every other view ask get the whole list in the reply, in the script's order, one line per item with its status — never grouped, ranged, tabled or counted in place of items. If the user asks "what's next?" give them the next task and its milestone/track context — one thing, not a list of options.
 
 If there's nothing DOING and nothing unblocked, surface that directly:
 > "Everything is blocked. The next unblocked item is `{slug}` in `{track}` — but it's waiting on `{dep}`."

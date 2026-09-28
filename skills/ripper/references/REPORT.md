@@ -13,59 +13,57 @@ render.
 
 ## Markdown template — inline report and on-ask `.md`
 
+The reader knows the subject but not ripper. Every line says what happens to a
+real user and what to do about it, in words they would use. No codes in the
+report: no horizon letters, logic names, evidence tags, grade brackets, or
+persona roster. Say "on first try" or "by month three"; name a persona by who
+they are ("a senior engineer who runs two premortems a quarter"); write
+"unverified" where the evidence is assumed. Everything else waits for
+`expand finding N`.
+
 ```markdown
 # ripper / <subject>
-> <one-line read on the subject>
 
-**Brief:** <what it is> · enables <workflow> · for <audience> · success = <retention at +3mo>
-**Run:** <quick cut|standard|verdict> · <fair|critical|brutal|decimating> · horizons A→B · <n> personas · <n> findings · <UTC date>
+<one sentence: who you are most likely to lose, at what moment, and the move that keeps them>
 
-> ⚠ DEV-STAGE — subject unreleased. Grades = where-to-look, not settled
-> signal. Real-evidence exceptions: <list exec/insp findings, or "none">.
-(banner only when subject is unreleased)
+<depth> · <intensity> · <n> findings · <UTC date>
+> ⚠ Not released yet — these show where to look, not proof. (only when unreleased)
 
-## Top Cuts
-- **Most Critical** — [<grade>] <summary>. <one-sentence why>.
-- **Biggest Drift Risk** — [<grade>] <summary>. <why>.
-- **Biggest Frame Risk** — [<grade>] <summary>. <why>.
-(coincide → say so; diverge → divergence is signal)
-
-## Personas
-- **<name>** · <logic> · <real|composite|hypothetical> — <standing>; win = <retention shape>.
+## Top cuts
+- **Most critical** — <what happens, to whom>
+- **Biggest drift** — <who stops coming back, and when>
+- **Biggest mix-up** — <who gets it wrong, and what they tell others>
+(the same finding twice → say so)
 
 ## Findings
-(sorted grade 1 → 10)
+(most critical first)
 
-### [<grade>] <persona> @ <A|B> — <short summary>
-what: <the cut — moment, cause, traced to a named part of the subject>
-why:  <what stops + why this grade, bracketed> [exec|insp|assm]
-who:  <owner of the do — person/role>
-do:   <fix|show|clarity-to-keep action> [cheap|medium|expensive]
+### <CRITICAL|HIGH|BOUNDED|MINOR|COSMETIC> — <what happens to whom, plainly>
+<the moment: who, doing what, hits what — one or two sentences; their voice welcome>
+<what it costs: what they stop doing>. <Unverified — <what would confirm it>.> (only when assumed)
+<Looks like <neighbor>: <the one difference that matters>.> (only when the finding rests on the resemblance)
+**Do:** <the action> — <who> · <cheap|medium|expensive>
 
-(neighbor block — only when required)
-Neighbor: <name> — they sell X; subject is Y.
-  same: <point> [src] · <point> [src]
-  diff: <point> [src] · <point> [src]
-  net:  <complement|adjacent|confusable|clone> → <retention implication>
+## Behind most of these
+<the shared cause and the one fix>. <Looks safe to skip: <finding> — <why it still matters>.> (only when one does)
 
-## Pattern
-<top 1–2 shared roots + the dominant fix>.
-**Anti-confirmation:** <finding>; dismissal <structural|motivated>.
+## Do next
+(at most three lines, most critical first; a row with nothing in it is dropped)
+- **Before release** — <who>: <action>
+- **Test first** — <who>: <what to check with a real person>
+- **Watch for** — <the sign it's getting worse>
 
-## Do Next
-**Fix before release** — [<grade>] <who>: <action>
-**Test before building** — [<grade>] <who>: <verification>
-**Watch** — [<grade>] <escalation signal>
-
----
-*cut clean. — ripper · <depth> · <intensity> · <dry-run|verdict> · <date>*
+*cut clean. — ripper*
 ```
 
 ## Expansion schema — `expand finding N`
 
 On request only, re-emit one finding with full anatomy:
 
+- **Persona** — name · logic · standing · win · real | composite | hypothetical.
+- **Horizon** — first contact or +3 months.
 - **Finding** in the persona's voice (blockquote).
+- **Evidence** — exec | insp | assm.
 - **Evidence detail** — what was inspected/executed, or the exact assumption.
 - **Trace** — file / section / line.
 - **Retention surface** — trust | fit | return | depth | advocacy.
@@ -107,14 +105,12 @@ precise, severe. Not a deck, not a dashboard.
 
 - **Bands:** 1–2 CRITICAL (blood) · 3–4 HIGH (amber) · 5–6 BOUNDED (bone) ·
   7–8 MINOR (steel) · 9–10 COSMETIC (faint).
-- **Evidence pills:** exec blood-bright · insp amber · assm faint.
+- **Unverified pill** on an assumed finding only, faint.
 - **Intensity tints the masthead accent only** — fair steel · critical bone ·
   brutal blood · decimating blood-bright + heavier grain. Structure and palette
   otherwise fixed per run.
-- **Sections mirror the markdown template:** masthead (brief + run metadata) →
-  caveat banner (amber, unmissable) → Top Cuts (three cards, Most Critical
-  largest) → personas → findings (grade column + what/why/who/do body; the
-  `what` renders as a blockquote with blood left-border) → Pattern → Do Next →
-  sign-off.
-- Conformance = SKILL.md Step 9, unchanged. A report failing any check → fix
-  before writing.
+- **Sections and words mirror the markdown template:** masthead (the one-line
+  read + run line) → caveat banner (amber, unmissable) → Top cuts (three cards,
+  Most critical largest) → findings (grade column + heading, moment, cost and
+  Do; the moment renders as a blockquote with blood left-border) → Behind most
+  of these → Do next → sign-off.
