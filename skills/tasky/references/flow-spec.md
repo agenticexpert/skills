@@ -59,7 +59,7 @@ n. ...
 
 ## LOCATION AND NAMING
 
-Skill-owned defaults: `.claude/skills/tasky/references/flows/`
+Skill-owned defaults: `{skills}/references/flows/`
 Project-owned flows:  `agents/flows/`
 
 Naming convention: `task-{name}.md`

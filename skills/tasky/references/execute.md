@@ -75,7 +75,7 @@ python manage_tasks.py set-status <project> <roadmap> <track> <milestone> <slug>
 
 Resolve every path listed in `## References` to an absolute path. Whoever runs the work phase loads each into context before starting — don't work from memory when a reference exists.
 
-If a flow resolves, whoever runs the work phase reads the flow file and executes its steps in order. `{task}` is where the task's criteria or Task instruction executes. See `.claude/skills/tasky/references/flow-spec.md` for full flow execution rules.
+If a flow resolves, whoever runs the work phase reads the flow file and executes its steps in order. `{task}` is where the task's criteria or Task instruction executes. See `{skills}/references/flow-spec.md` for full flow execution rules.
 
 Then build the dispatch brief below.
 

@@ -2,7 +2,7 @@
 
 The user wants to create, update, remove, or attach a flow. Flows wrap task execution with project-specific steps.
 
-Read `.claude/skills/tasky/references/flow-spec.md` before acting — it defines the full format and execution model.
+Read `{skills}/references/flow-spec.md` before acting — it defines the full format and execution model.
 
 ---
 
@@ -15,7 +15,7 @@ Ask:
 - Are there standing instructions that apply throughout, or instructions to inject at a specific step?
 
 Write the flow file:
-- Skill-owned: `.claude/skills/tasky/references/flows/task-{name}.md`
+- Skill-owned: `{skills}/references/flows/task-{name}.md`
 - Project-owned: `agents/flows/task-{name}.md`
 
 Register it in `tasky.md` under `## Flows`.

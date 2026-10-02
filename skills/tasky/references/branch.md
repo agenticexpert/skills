@@ -2,7 +2,7 @@
 
 The user is jumping out of the current milestone, coming back from a detour, undoing one, or asking what is in flight.
 
-All scripts live at `.claude/skills/tasky/scripts/`. Resolve every natural-language name to slugs first, per navigate.md → **Resolving References**. A t_key is `<roadmap>/<track>/<milestone>`.
+All scripts live at `{skills}/scripts/`, where `{skills}` is the directory holding this playbook, minus `/references`. Resolve every natural-language name to slugs first, per navigate.md → **Resolving References**. A t_key is `<roadmap>/<track>/<milestone>`.
 
 ---
 
@@ -13,7 +13,7 @@ All scripts live at `.claude/skills/tasky/scripts/`. Resolve every natural-langu
 Resolve X to a destination t_key. The origin is the milestone holding the current DOING task; with none, the milestone in conversation focus. Create the destination milestone first (`structure.md`) when it does not exist. Then:
 
 ```
-python .claude/skills/tasky/scripts/manage_branches.py open <project> <origin-t_key> <dest-t_key> [--oob]
+python {skills}/scripts/manage_branches.py open <project> <origin-t_key> <dest-t_key> [--oob]
 ```
 
 Pass `--oob` when the destination work belongs out of band.
@@ -49,7 +49,7 @@ State the line's substance in plain words. Do not retry and do not work around i
 Whenever the current milestone is a branch destination, resolve "next" through the return check:
 
 ```
-python .claude/skills/tasky/scripts/manage_branches.py show <project> --return
+python {skills}/scripts/manage_branches.py show <project> --return
 ```
 
 Announce lines print first, the JSON answer after them — parse from the first `{`. The answer carries `origin`, `origin_anchor` and `mid`, and sets `drift` when the anchor was gone and the record was dropped.
@@ -65,8 +65,8 @@ The script prints one line per hop and closes each record it consumes. Do not re
 ## Closing and undoing
 
 ```
-python .claude/skills/tasky/scripts/manage_branches.py close <project> <MID>
-python .claude/skills/tasky/scripts/manage_branches.py drop  <project> <MID>
+python {skills}/scripts/manage_branches.py close <project> <MID>
+python {skills}/scripts/manage_branches.py drop  <project> <MID>
 ```
 
 `close` marks the detour finished when the user says so. `drop` removes both marker rows, deletes the record, and restores the anchor's status — run it when the user rejects an auto-branch.

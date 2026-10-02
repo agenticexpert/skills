@@ -102,7 +102,7 @@ After a confirmed task rename or delete, fix the dangling `Dependencies:` lines 
 ### Project
 
 ```
-python .claude/skills/tasky/scripts/manage_projects.py create-project <slug>
+python {skills}/scripts/manage_projects.py create-project <slug>
 ```
 
 Creates `{root}/{slug}/` and an empty `project.json`.
@@ -110,7 +110,7 @@ Creates `{root}/{slug}/` and an empty `project.json`.
 ### Roadmap
 
 ```
-python .claude/skills/tasky/scripts/manage_roadmaps.py create <project> <slug>
+python {skills}/scripts/manage_roadmaps.py create <project> <slug>
 ```
 
 Creates `{root}/{project}/{slug}/` and appends to `project.json["roadmaps"]`.
@@ -118,7 +118,7 @@ Creates `{root}/{project}/{slug}/` and appends to `project.json["roadmaps"]`.
 ### Track
 
 ```
-python .claude/skills/tasky/scripts/manage_tracks.py create <project> <roadmap> <slug>
+python {skills}/scripts/manage_tracks.py create <project> <roadmap> <slug>
 ```
 
 Creates `{root}/{project}/{roadmap}/{slug}/` and appends to `project.json["tracks"][roadmap]["order"]`.
@@ -126,7 +126,7 @@ Creates `{root}/{project}/{roadmap}/{slug}/` and appends to `project.json["track
 ### Milestone
 
 ```
-python .claude/skills/tasky/scripts/manage_milestones.py create <project> <roadmap> <track> <slug> [--insert <n>] [--deps <slug,...>]
+python {skills}/scripts/manage_milestones.py create <project> <roadmap> <track> <slug> [--insert <n>] [--deps <slug,...>]
 ```
 
 - `--insert <n>` — places at position n in the order array (1-based), shifting others down.
@@ -137,7 +137,7 @@ Creates the directory and registers in `project.json["milestones"]`.
 ### Task
 
 ```
-python .claude/skills/tasky/scripts/manage_tasks.py create <project> <roadmap> <track> <milestone> <slug> [--insert <n>] [--deps <slug,...>]
+python {skills}/scripts/manage_tasks.py create <project> <roadmap> <track> <milestone> <slug> [--insert <n>] [--deps <slug,...>]
 ```
 
 - `--insert <n>` — places at position n in the order array (1-based).
@@ -196,8 +196,8 @@ Leave Dependencies empty if none. List only tasks that are not DONE. Description
 ## Resequencing (same parent)
 
 ```
-python .claude/skills/tasky/scripts/manage_milestones.py move <project> <roadmap> <track> <slug> --insert <n>
-python .claude/skills/tasky/scripts/manage_tasks.py move <project> <roadmap> <track> <milestone> <slug> --insert <n>
+python {skills}/scripts/manage_milestones.py move <project> <roadmap> <track> <slug> --insert <n>
+python {skills}/scripts/manage_tasks.py move <project> <roadmap> <track> <milestone> <slug> --insert <n>
 ```
 
 Reorders within the parent's array in project.json. No filesystem changes.
@@ -220,10 +220,10 @@ Any item can be moved to another valid container of the same type:
 | roadmap | different project | `project` |
 
 ```
-python .claude/skills/tasky/scripts/manage_tasks.py move <...path...> <slug> --dest <roadmap/track/milestone> [--insert <n>]
-python .claude/skills/tasky/scripts/manage_milestones.py move <...path...> <slug> --dest <roadmap/track> [--insert <n>]
-python .claude/skills/tasky/scripts/manage_tracks.py move <project> <roadmap> <slug> --dest <roadmap> [--insert <n>]
-python .claude/skills/tasky/scripts/manage_roadmaps.py move <project> <roadmap> --dest <project> [--insert <n>]
+python {skills}/scripts/manage_tasks.py move <...path...> <slug> --dest <roadmap/track/milestone> [--insert <n>]
+python {skills}/scripts/manage_milestones.py move <...path...> <slug> --dest <roadmap/track> [--insert <n>]
+python {skills}/scripts/manage_tracks.py move <project> <roadmap> <slug> --dest <roadmap> [--insert <n>]
+python {skills}/scripts/manage_roadmaps.py move <project> <roadmap> --dest <project> [--insert <n>]
 ```
 
 **Dep validation blocks the move** if any sibling dependency would be broken:
@@ -237,9 +237,9 @@ If conflicts exist, the script errors with the list of affected deps. Resolve th
 ## Adding Dependencies
 
 ```
-python .claude/skills/tasky/scripts/manage_tasks.py add-dep <...path...> <slug> <dep-slug>
-python .claude/skills/tasky/scripts/manage_milestones.py add-dep <...path...> <slug> <dep-slug>
-python .claude/skills/tasky/scripts/manage_tracks.py add-dep <project> <roadmap> <track> <dep-track>
+python {skills}/scripts/manage_tasks.py add-dep <...path...> <slug> <dep-slug>
+python {skills}/scripts/manage_milestones.py add-dep <...path...> <slug> <dep-slug>
+python {skills}/scripts/manage_tracks.py add-dep <project> <roadmap> <track> <dep-track>
 ```
 
 Dependencies are always scoped to siblings. Validate before writing. Never add a DONE task as a dependency.
@@ -249,7 +249,7 @@ Dependencies are always scoped to siblings. Validate before writing. Never add a
 ## Track Ordering and Dependencies
 
 ```
-python .claude/skills/tasky/scripts/manage_tracks.py add-dep <project> <roadmap> <track> <dep-track>
+python {skills}/scripts/manage_tracks.py add-dep <project> <roadmap> <track> <dep-track>
 ```
 
 This writes to `project.json["tracks"][roadmap]["deps"]`. Never edit `project.json` directly.
@@ -265,17 +265,17 @@ Focus controls which roadmaps, tracks, and milestones are visible in views by de
 ### Hide
 
 ```
-python .claude/skills/tasky/scripts/manage_roadmaps.py hide <project> <roadmap>
-python .claude/skills/tasky/scripts/manage_tracks.py hide <project> <roadmap> <track>
-python .claude/skills/tasky/scripts/manage_milestones.py hide <project> <roadmap> <track> <milestone>
+python {skills}/scripts/manage_roadmaps.py hide <project> <roadmap>
+python {skills}/scripts/manage_tracks.py hide <project> <roadmap> <track>
+python {skills}/scripts/manage_milestones.py hide <project> <roadmap> <track> <milestone>
 ```
 
 ### Unhide
 
 ```
-python .claude/skills/tasky/scripts/manage_roadmaps.py unhide <project> <roadmap>
-python .claude/skills/tasky/scripts/manage_tracks.py unhide <project> <roadmap> <track>
-python .claude/skills/tasky/scripts/manage_milestones.py unhide <project> <roadmap> <track> <milestone>
+python {skills}/scripts/manage_roadmaps.py unhide <project> <roadmap>
+python {skills}/scripts/manage_tracks.py unhide <project> <roadmap> <track>
+python {skills}/scripts/manage_milestones.py unhide <project> <roadmap> <track> <milestone>
 ```
 
 **Rules:**

@@ -42,7 +42,8 @@ FLOW: standard
 
 - Project data: `root` value from `tasky.md`
 - Design docs: `agents/docs/`
-- Scripts: `.claude/skills/tasky/scripts/`
+- Skill: `{skills}` — the directory holding this `SKILL.md`. Every `{skills}/` path in a playbook resolves against it; never type the path literally.
+- Scripts: `{skills}/scripts/`
 
 ---
 

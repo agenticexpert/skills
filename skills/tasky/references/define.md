@@ -45,7 +45,7 @@ Three entry points:
 
 Load the milestone's tasks with:
 ```
-python .claude/skills/tasky/scripts/manage_tasks.py list <project> <roadmap> <track> <milestone>
+python {skills}/scripts/manage_tasks.py list <project> <roadmap> <track> <milestone>
 ```
 
 ---
@@ -63,7 +63,7 @@ From the answers, propose a task sequence. Name them, order them, surface depend
 
 Create stubs:
 ```
-python .claude/skills/tasky/scripts/manage_tasks.py create <project> <roadmap> <track> <milestone> <slug>
+python {skills}/scripts/manage_tasks.py create <project> <roadmap> <track> <milestone> <slug>
 ```
 
 State the sequence, then move to detail. Wait for a reply only when the user is actively shaping the breakdown with you — never when a single stub is being defined inline on the way to executing it (execute.md → **Identifying the Task**).
@@ -121,7 +121,7 @@ Gate the flip: re-read the task file first. `pending` requires the target detail
 When the task or tasks are defined at the right detail level for what's coming next, set status to `pending`:
 
 ```
-python .claude/skills/tasky/scripts/manage_tasks.py set-status <project> <roadmap> <track> <milestone> <slug> pending
+python {skills}/scripts/manage_tasks.py set-status <project> <roadmap> <track> <milestone> <slug> pending
 ```
 
 The user can execute immediately or come back later. If executing now, hand off to execute.md.

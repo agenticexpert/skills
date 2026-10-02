@@ -2,7 +2,7 @@
 
 The user wants to know where things stand. Answer with data from scripts. Never guess state from memory — always run the appropriate script.
 
-All scripts live at `.claude/skills/tasky/scripts/`.
+All scripts live at `{skills}/scripts/`, where `{skills}` is the directory holding this playbook, minus `/references`.
 
 ---
 
@@ -28,7 +28,7 @@ Match every hierarchy noun the user names — **project, roadmap, track, milesto
 Get the full tree as JSON:
 
 ```
-python .claude/skills/tasky/scripts/scan.py
+python {skills}/scripts/scan.py
 ```
 
 - The JSON ends at the final `]`. A `[tasky]` banner follows it on stdout — strip it before parsing.
@@ -60,7 +60,7 @@ Then run the script with the resolved slugs.
 If — and only if — the user gives no hierarchy noun ("show me everything", "the whole board"), run the full tree. A status ask — "status", "where are we?", "what's next?" — is not this; it gets the STATUS form under **Interpreting Results**:
 
 ```
-python .claude/skills/tasky/scripts/view_all.py
+python {skills}/scripts/view_all.py
 ```
 
 **Flags** (`view_all.py` unless noted):

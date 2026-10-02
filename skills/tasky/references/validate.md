@@ -9,7 +9,7 @@ The user wants to review completed work for drift. Run the mechanical checks, th
 READY tasks are the primary validation target. They are complete but awaiting human sign-off before DONE. Surface all READY tasks first:
 
 ```
-python .claude/skills/tasky/scripts/view_all.py --status ready
+python {skills}/scripts/view_all.py --status ready
 ```
 
 For each READY task: read it, confirm criteria are all checked and the work looks real. Report pass or fail — only the user marks DONE. Set DONE solely on their explicit confirmation; on a fail, flag the issue and set back to DOING on their call.
@@ -21,13 +21,13 @@ For each READY task: read it, confirm criteria are all checked and the work look
 Run validate.py to surface structural drift:
 
 ```
-python .claude/skills/tasky/scripts/validate.py
+python {skills}/scripts/validate.py
 ```
 
 Or scoped to a project:
 
 ```
-python .claude/skills/tasky/scripts/validate.py --project <slug>
+python {skills}/scripts/validate.py --project <slug>
 ```
 
 The script checks:
