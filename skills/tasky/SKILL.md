@@ -64,7 +64,13 @@ STATUS: <where the work stands — one plain fact>
 
 - <what blocks progress, if anything>
 
-NEXT:
+DOING NOW:
+- <work running right now> [task id]
+
+WAITING ON:
+- <an outside run or person the next step needs>
+
+NEXT:  (THEN: when DOING NOW is shown)
 - <step, a few words> [task id]
 ```
 
@@ -106,7 +112,7 @@ EXECUTE: references/brainstorm.md
   - Two or more equal matches → one line naming them: "Did you mean X or Y?"
   - Routing may take a task to READY, never DONE. It never creates, renames, or resequences.
 - A playbook backgrounds into a sub-agent only when its whole input is already on disk and its output is a compact receipt. A playbook whose work phase questions the user by design (**Deciding**), writes tasky state, or ends in user sign-off (`validate.md`) stays in the main window. Today only `execute.md`'s work phase backgrounds; `plan.md`, `structure.md`, `navigate.md`, `branch.md`, `define.md`, `flow.md`, `brainstorm.md`, `setup.md`, `validate.md`, and the hand-back above stay inline. This applies to every playbook in `references/`, present and future.
-- Task status changes only through `manage_tasks.py set-status`, and a criterion is ticked only through `manage_tasks.py check` with its evidence, one criterion at a time. Never edit a `Status:` line, a checkbox, or `project.json` by hand.
+- Task status changes only through `manage_tasks.py set-status`, and a criterion is ticked only through `manage_tasks.py check` with its evidence, one criterion at a time. Never edit a `Status:` or `Session:` line, a checkbox, or `project.json` by hand.
 - Any criterion not met → the task goes to `paused`, never READY, and the unfinished part is listed as a fact bullet.
 - DONE comes only from READY, only on the user's word, and only for the task they named. "Done and next" marks the current task DONE and starts the next; it never finishes the next one. `set-status` refuses DONE from any other status, and READY or DONE with an open box; `--force` only when the user explicitly says to skip that.
 - A dispatch brief carries all of `execute.md → Dispatch Brief`, the receipt template quoted word for word.

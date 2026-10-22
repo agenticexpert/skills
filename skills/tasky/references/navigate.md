@@ -76,7 +76,7 @@ python {skills}/scripts/view_all.py
 | Question | Command |
 |---|---|
 | What's active right now? | `view_all.py --status doing` — if nothing is DOING, show PENDING next |
-| What's next? | `view_all.py --status pending,ready,doing` — in progress, ready to start, pending; respects the full hierarchy including track-level deps |
+| What's next? | `view_all.py --status pending,ready,doing` — in progress, ready to start, pending; respects the full hierarchy including track-level deps. A row marked `← another session` is that session's, and so is the rest of its milestone: skip both |
 | What's blocked? | `view_all.py --blocked` — compact text: task slug, location, unmet deps |
 | What's hidden / in focus? | any view script with `--all` |
 | Dependency graph | `view_deps.py <project> <roadmap> [<track> [<milestone>]]` — ASCII tree with status char, seq, and slug; more args narrow scope: roadmap → track deps, +track → milestone deps, +milestone → task deps |
@@ -92,11 +92,11 @@ python {skills}/scripts/view_all.py
 
 Steps:
 
-1. Determine the **current thread** from conversation context — which milestone is in focus. If ambiguous, use the one with DOING tasks; with none, the most recently discussed thread.
+1. Determine the **current thread** from conversation context — which milestone is in focus. If ambiguous, use the one with unmarked DOING tasks; with none, the most recently discussed thread.
 2. Read task states for the current thread: `view_tasks.py <project> <roadmap> <track> <milestone>`
 3. Get the broader picture for other open fronts: `view_all.py --status doing,paused,ready,pending`
 4. Classify tasks from the `view_tasks.py` output:
-   - **Ready now** = status PENDING + no unmet deps shown
+   - **Ready now** = status PENDING + no unmet deps shown, in a milestone not marked `← another session`
    - **Stubs** = status TODO (need `tasky define` before they can run, regardless of deps)
    - **Blocked** = has unmet deps listed; include the blocking dep names
 5. **Synthesize as formatted text report. Do NOT paste raw script output.**
@@ -131,7 +131,7 @@ Numbers run sequentially across all three sections. Omit any section with no ite
 
 ## Interpreting Results
 
-Present results plainly. Don't over-narrate. The user does not see script output: "show the tasks", "list all X" and every other view ask get the whole list in the reply, in the script's order, one line per item with its status — never grouped, ranged, tabled or counted in place of items. If the user asks "what's next?" give them the next task and its milestone/track context — one thing, not a list of options.
+Present results plainly. Don't over-narrate. The user does not see script output: "show the tasks", "list all X" and every other view ask get the whole list in the reply, in the script's order, one line per item with its status — never grouped, ranged, tabled or counted in place of items. If the user asks "what's next?" give them the next task outside every milestone marked `← another session`, with its milestone/track context — one thing, not a list of options.
 
 If there's nothing DOING and nothing unblocked, surface that directly:
 > "Everything is blocked. The next unblocked item is `{slug}` in `{track}` — but it's waiting on `{dep}`."
@@ -147,12 +147,20 @@ STATUS: <where the work stands — one plain fact>
 
 - <what blocks progress, if anything>
 
-NEXT:
+DOING NOW:
+- <work running right now> [task id]
+
+WAITING ON:
+- <an outside run or person the next step needs>
+
+NEXT:  (THEN: when DOING NOW is shown)
 - <step, a few words> [task id]
 - <step> [task id]
 ```
 
 - Facts only — no describing, justifying, or contrasting.
 - A blocker also leads `NEXT:` as its own step, never as a branch or an A/B choice.
+- Work another session holds is never under `DOING NOW:`, `THEN:` or `NEXT:`; it goes under `WAITING ON:` only when a later step needs it.
+- Work running at this moment, and any step the user can take meanwhile, goes under `DOING NOW:`. With it shown, the steps after it go under `THEN:`; with nothing running, under `NEXT:`. Either holds only steps no one has started. An outside run or person a later step needs goes under `WAITING ON:`. Each appears only when it has a line.
 - A status answer never carries options, deferrals-dressed-as-choices, or a clarifier block — the Auto-Proceed Doctrine (`SKILL.md`) applied to this format.
 - A few words per step. No elaboration, no restating the board.

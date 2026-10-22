@@ -19,10 +19,13 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import TASKY_ROOT
+from claims import other_holder
 
 COL_SEQ    = 3
 COL_STATUS = 7
 MAX_TITLE  = 52
+
+HELD_MARK  = "  ← another session"
 
 MID_RE = re.compile(r"^branch--[0-9a-f]{8}$")
 
@@ -121,6 +124,7 @@ def load_tasks(milestone_dir, task_order):
             "deps":  deps,
             "criteria_total": ct,
             "criteria_done":  cd,
+            "held":  bool(other_holder(fpath)),
         })
 
     return tasks
@@ -209,7 +213,8 @@ def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None
     ms_status = compute_status(tasks)
     done  = sum(1 for t in tasks + oob_tasks if t["status"] == "done")
     total = sum(1 for t in tasks + oob_tasks if t["status"] != "x")
-    next_seq = find_next(tasks)
+    held = any(t["held"] for t in tasks + oob_tasks)
+    next_seq = None if held else find_next(tasks)
 
     all_for_cols   = tasks + oob_tasks
     dep_lists      = [dep_lines(t["deps"]) for t in all_for_cols]
@@ -246,7 +251,7 @@ def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None
         title = t["title"]
         if len(title) > MAX_TITLE:
             title = title[:MAX_TITLE - 3] + "..."
-        marker = "  ← next" if t["seq"] == next_seq else ""
+        marker = HELD_MARK if t["held"] else ("  ← next" if t["seq"] == next_seq else "")
         if not marker and closing and t["seq"] == closing[0]:
             marker = "  ← new task inserts here"
         out.append(
@@ -281,7 +286,8 @@ def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None
                 "·".rjust(COL_SEQ) + "  " +
                 title.ljust(col_title) +
                 deps[0].ljust(col_deps) +
-                t["status"]
+                t["status"] +
+                (HELD_MARK if t["held"] else "")
             )
             for d in deps[1:]:
                 out.append(
@@ -297,7 +303,9 @@ def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None
 
     out.append(sep)
 
-    if next_seq:
+    if held:
+        out.append("Next unblocked: none — another session holds this milestone")
+    elif next_seq:
         nt = next(t for t in tasks if t["seq"] == next_seq)
         out.append(f"Next unblocked: {next_seq} — {nt['title']}")
     else:

@@ -22,7 +22,8 @@ import shutil
 import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from tasky_config import TASKY_ROOT, validate_slug, validate_slash_path
+from tasky_config import SESSION, TASKY_ROOT, validate_slug, validate_slash_path
+from claims import describe, milestone_other_holder, other_holder, with_session
 
 VALID_STATUSES = {"X", "TODO", "PENDING", "DOING", "PAUSED", "READY", "DONE"}
 
@@ -150,6 +151,8 @@ def write_task_status(task_path, new_status):
     with open(task_path) as f:
         content = f.read()
     content = re.sub(r"^Status:.*$", f"Status: {new_status}", content, flags=re.MULTILINE)
+    if new_status == "DOING":
+        content = with_session(content, SESSION)
     with open(task_path, "w") as f:
         f.write(content)
 
@@ -515,6 +518,18 @@ def cmd_set_status(args):
         sys.exit(1)
 
     if not args.force:
+        held = other_holder(task_path)
+        if held and status != "DONE":
+            print(f"Error: another session holds '{args.slug}' ({describe(task_path, held)}). "
+                  "Take the next free task; --force takes it over only on the user's word.", file=sys.stderr)
+            sys.exit(1)
+        taken = milestone_other_holder(mpath) if status == "DOING" else None
+        if taken:
+            print(f"Error: another session holds milestone '{args.milestone}' through '{taken[0]}' "
+                  f"({describe(os.path.join(mpath, taken[0] + '.md'), taken[1])}). "
+                  "Take the next free task in another milestone; --force starts it only on the user's word.",
+                  file=sys.stderr)
+            sys.exit(1)
         current = read_task_status(task_path).upper()
         if status == "DONE" and current != "READY":
             print(f"Error: '{args.slug}' is {current}. DONE comes only from READY, after the user confirms.", file=sys.stderr)
@@ -670,7 +685,7 @@ def main():
     p_set_status.add_argument("slug")
     p_set_status.add_argument("status")
     p_set_status.add_argument("--force", action="store_true",
-                              help="Skip the READY/DONE guards — only on the user's explicit word")
+                              help="Skip the READY/DONE and other-session guards — only on the user's explicit word")
 
     p_check = sub.add_parser("check", help="Check one criterion, with its evidence")
     p_check.add_argument("project")

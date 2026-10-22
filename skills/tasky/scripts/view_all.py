@@ -36,6 +36,7 @@ ALL_STATUSES = {"todo", "ready", "doing", "paused", "pending", "done", "x"}
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import TASKY_ROOT
+from claims import other_holder
 
 MID_RE = re.compile(r"^branch--[0-9a-f]{8}$")
 
@@ -54,6 +55,8 @@ def split_markers(order, branches=None):
             task_slugs.append(slug)
     return task_slugs, markers
 
+
+HELD_MARK    = "  ← another session"
 
 NAME_WIDTH   = 40
 BAR_WIDTH    = 30
@@ -259,12 +262,14 @@ def load_all():
                         if not os.path.isfile(fpath):
                             continue
                         status, deps = read_task_meta(fpath)
-                        tasks.append({"seq": seq, "slug": tslug, "status": status, "deps": deps})
+                        tasks.append({"seq": seq, "slug": tslug, "status": status, "deps": deps,
+                                      "held": bool(other_holder(fpath))})
                     td = sum(1 for t in tasks if t["status"] == "done")
                     tt = sum(1 for t in tasks if t["status"] != "x")
                     ms = "x" if tt == 0 else ("done" if td == tt else ("doing" if td > 0 else "pending"))
                     return {"slug": mslug, "tasks_done": td, "tasks_total": tt,
                             "status": ms, "tasks": tasks, "oob": is_oob,
+                            "held": any(t["held"] for t in tasks),
                             "focus_hidden": mslug in _hidden_ms}
 
                 milestones = []
@@ -543,7 +548,7 @@ def render(projects, filter_statuses=None, hide_types=None, show_all=False):
                         progress_bar(ms["tasks_done"], ms["tasks_total"]),
                         ms["status"], "",
                         f"{ms['tasks_done']}/{ms['tasks_total']}",
-                    ))
+                    ) + (HELD_MARK if ms["held"] else ""))
 
                     if ms["status"] == "done" and "tasks" in hide_types:
                         continue
@@ -561,7 +566,7 @@ def render(projects, filter_statuses=None, hide_types=None, show_all=False):
                         lines.append(row(
                             zpad(task["seq"], len(ms["tasks"])), ms_cont + tk_conn, task["slug"],
                             "", task["status"], "", "",
-                        ))
+                        ) + (HELD_MARK if task["held"] else ""))
 
     lines.append(bot)
     return "\n".join(lines)

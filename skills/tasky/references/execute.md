@@ -4,17 +4,23 @@ The user wants to work a task. Identify which task, load it, do the work, update
 
 ---
 
+## Other Sessions
+
+`view_all.py` and `view_tasks.py` mark a task another session holds, and its milestone, `← another session`. That task and every task in its milestone are that session's: never start, resume, pause or branch from them. `set-status` refuses them and names the holder. The user names a marked task, or says "continue" when the only DOING task is marked → surface it as a NEGATIVE RIPPLE (SKILL.md → **Deciding**); `--force` takes it over only on the user's word.
+
+---
+
 ## Identifying the Task
 
 **User names a specific task** — resolve it (alias if needed) and load it.
 
-**User says "continue" or "resume"** — if there is a DOING task in the known milestone context, that is the task. If the milestone isn't known, infer it from the conversation thread, or from the sole DOING task. Only when neither exists is it a blocker (SKILL.md → **Deciding**, BLOCKER).
+**User says "continue" or "resume"** — if there is an unmarked DOING task in the known milestone context, that is the task. If the milestone isn't known, infer it from the conversation thread, or from the sole unmarked DOING task. Only when neither exists is it a blocker (SKILL.md → **Deciding**, BLOCKER).
 
 **User says "start the next one" / "skip ahead" / "skip it"** — the explicit skip. Match this before the bare "next" case below. Pause the DOING task per **Pausing**, then take the first task in sequence *after that one* with status `pending` or `paused`. Never re-select the task just paused.
 
 **User says "next"** (bare) — two cases:
-- A DOING task exists in the milestone → resume it, and say so in one line: *"Resuming `{doing-task}`. Say 'start the next one' to switch."* No menu.
-- No DOING task exists → first task in sequence with status `pending` or `paused`. If the next task is `todo` (undefined stub), define it inline from milestone context — the content bar is define.md → **Detail Levels** and **Writing the Task File**, the status flip to `pending` is define.md → **Exit** — then execute. State what you wrote.
+- An unmarked DOING task exists in the milestone → resume it, and say so in one line: *"Resuming `{doing-task}`. Say 'start the next one' to switch."* No menu.
+- No unmarked DOING task exists → first task in sequence with status `pending` or `paused`. A marked milestone holds none for you; take the first one in the next unmarked milestone on the board. If the next task is `todo` (undefined stub), define it inline from milestone context — the content bar is define.md → **Detail Levels** and **Writing the Task File**, the status flip to `pending` is define.md → **Exit** — then execute. State what you wrote.
 
 **Either "next" case, in a milestone that is a branch destination** — run the return check in `branch.md` → **Returning** before selecting a task. A resolved hop names where to go; nothing resolved means stay here.
 
@@ -132,7 +138,7 @@ Dispatch in the background. While the run is live the user sees one line from it
 
 **The sub-agent cannot ask.** On an un-inferable decision it stops, edits nothing further, and returns BLOCKED plus the one question. You set `paused` and surface it in SKILL.md → **Deciding** voice. A failed step returns BLOCKED the same way (flow-spec.md → **FAILURE BEHAVIOR**).
 
-**Orphan rule.** On load, a task at DOING with no live dispatch in this session is resumable: re-read its criteria from disk and re-dispatch from the first unchecked one.
+**Orphan rule.** On load, an unmarked task at DOING with no live dispatch in this session is resumable: re-read its criteria from disk and re-dispatch from the first unchecked one.
 
 **Short receipt.** A receipt reporting COMPLETE while some criteria are NOT MET, with no BLOCKED question: write the boxes whose verdicts carry evidence, then set `paused` and surface the criteria that came back unmet. Do not re-dispatch them in place — a second attempt is the user's call.
 
@@ -229,7 +235,14 @@ STATUS: <where this task stands — one short sentence>
 - <a fact>
   - <a detail of that fact>
 
-NEXT:
+DOING NOW:
+- You: <a step you can take meanwhile>
+- Me: <a step of mine running right now>
+
+WAITING ON:
+- <what holds the next step: an outside run, another person>
+
+NEXT:  (THEN: when DOING NOW is shown)
   TEST IT:
     1. <what to do>
     2. <what to do>
@@ -243,7 +256,7 @@ DECIDE: <the choice, in terms of what you would notice>
   - my pick: <option> — <what only you know that could change it>
 ```
 
-The criteria and their evidence proved the work to you; they are not the report. Every line passes one test: would the user, knowing only this task's goal, see at once why it is there? No → cut it. A warning stays only when the user must change course now. When the next step is the user trying the work, `NEXT:` holds a `TEST IT:` block: numbered actions, then what the user should see, as bullets. Every other `NEXT:` line starts with who acts, `You:` or `Me:`. The user's steps come first; a step of the builder's that runs meanwhile says so.
+The criteria and their evidence proved the work to you; they are not the report. Every line passes one test: would the user, knowing only this task's goal, see at once why it is there? No → cut it. A warning stays only when the user must change course now. `STATUS:` comes first. Each line holds one sentence; a second fact is its own bullet. Every step line starts with who acts, `You:` or `Me:`, the user's steps first. `DOING NOW:` holds the builder's work running at this moment, and any step the user can take meanwhile. With `DOING NOW:` shown, the steps that come after it go under `THEN:`; with nothing running, under `NEXT:`. Either holds only steps no one has started. `WAITING ON:` lists only what is outside the session and holds a later step: an outside run, another person. The user's answer is a `DECIDE:`. When the next step is the user trying the work, `NEXT:` or `THEN:` holds a `TEST IT:` block: numbered actions, then what the user should see, as bullets.
 
 `DECIDE:` appears only when the task cannot finish without the user's answer. It names the choice by what the user would notice, what each option changes for them, the builder's pick, and what only the user knows that could change it. A choice that does not block the task, or that can only be named in code terms, is not a DECIDE.
 

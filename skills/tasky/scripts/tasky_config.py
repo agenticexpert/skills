@@ -11,8 +11,12 @@ either search exits 1.
 Config lookup within the found root (first match wins): .agents/tasky/tasky.md,
 then repo-root tasky.md.
 
+Session: the TASKY_SESSION environment variable, else CLAUDE_CODE_SESSION_ID, else
+None.
+
 Exported:
     TASKY_ROOT  — absolute path to the project data directory
+    SESSION     — id of the session running this script, or None
 """
 
 import atexit
@@ -104,6 +108,9 @@ def validate_slash_path(value, parts, label="path"):
 
 
 TASKY_ROOT = _find_root()
+
+SESSION = (os.environ.get("TASKY_SESSION", "").strip()
+           or os.environ.get("CLAUDE_CODE_SESSION_ID", "").strip() or None)
 
 
 def _print_banner():

@@ -13,7 +13,6 @@ import os
 import pathlib
 import re
 import sys
-import tempfile
 
 FORBIDDEN = [
     (r'\bset-status\b', 'the set-status command'),
@@ -23,7 +22,7 @@ FORBIDDEN = [
     (r'^\s*STATUS:\s*(?:COMPLETE|BLOCKED|DOING|READY|DONE|PAUSED|PENDING)\s*$', 'a raw status line'),
     (r'\b\d{2}-[a-z0-9]+(?:-[a-z0-9]+)+\b(?!\.md)', 'a directory slug'),
     (r'\.agents/tasky/', 'an internal path'),
-    (r'\b(?:READY|DOING|PAUSED)\b', 'a raw task status'),
+    (r'\b(?:READY|DOING(?! NOW:)|PAUSED)\b', 'a raw task status'),
     (r'\bcriteria (?:met|checked|verified)\b|\d+\s*/\s*\d+ criteria', 'a criteria tally'),
     (r'\bgates? (?:all )?(?:green|0|clean)\b', 'gate mechanics'),
     (r'\d+\s*(?:→|->)\s*\d+ tests\b', 'a test-count delta'),
@@ -133,15 +132,20 @@ def form_violation(body):
     if body[:match.start()].strip():
         return 'text before the STATUS: line', body.strip().splitlines()[0][:60]
 
-    # Allowed after STATUS: blank lines, "- fact" bullets at any depth, NEXT:, DECIDE:,
-    # and a TEST IT: block of numbered steps.
+    # Allowed after STATUS: blank lines, "- fact" bullets at any depth, DOING NOW:, WAITING ON:,
+    # NEXT: (THEN: after DOING NOW), DECIDE:, and a TEST IT: block of numbered steps.
     section = 'STATUS'
+    doing = re.search(r'^\s*DOING NOW:', body, re.M)
     for line in body[match.start():].splitlines():
         stripped = line.strip()
         if not stripped:
             continue
-        head = re.match(r'(STATUS|NEXT|DECIDE|TEST IT):', stripped)
+        head = re.match(r'(STATUS|DOING NOW|WAITING ON|NEXT|THEN|DECIDE|TEST IT):', stripped)
         if head:
+            if head.group(1) == 'NEXT' and doing:
+                return 'NEXT: after DOING NOW: — head the later steps THEN:', stripped[:60]
+            if head.group(1) == 'THEN' and not doing:
+                return 'THEN: with nothing running — head the steps NEXT:', stripped[:60]
             fact, label = stripped[head.end():].strip(), head.group(1)
             section = label
         elif stripped.startswith('- '):
@@ -160,7 +164,7 @@ def form_violation(body):
             return 'describing or justifying — reduce it to the fact', fact[:60]
         cap = {'STATUS': MAX_STATUS_WORDS, 'DECIDE': MAX_DECIDE_WORDS}.get(label, MAX_BULLET_WORDS)
         if len(fact.split()) > cap:
-            return f'a {len(fact.split())}-word line — one fact, a few words', fact[:60]
+            return f'a {len(fact.split())}-word line — one sentence per line, a second fact as its own bullet', fact[:60]
     return None
 
 
@@ -205,7 +209,14 @@ STATUS: <where this task stands, one short sentence>
 - <a fact>
   - <a detail of that fact>
 
-NEXT:
+DOING NOW:
+- You: <a step the user can take meanwhile>
+- Me: <a builder step running right now>
+
+WAITING ON:
+- <what holds the next step: an outside run, another person>
+
+NEXT:  (THEN: when DOING NOW is shown)
   TEST IT:
     1. <what to do>
     2. <what to do>
@@ -218,10 +229,15 @@ DECIDE: <the choice, in terms of what the user would notice>
   - <option>: <what it changes for them>
   - my pick: <option> — <what only you know that could change it>
 
-STATUS stays first. Drop a section left empty. When the next step is the user trying
-the work, NEXT holds a TEST IT: block: numbered actions, then what they should see.
-Every other NEXT line starts with who acts: "You:" for the user, "Me:" for the
-builder. The user's steps come first; a builder step that runs meanwhile says so.
+STATUS stays first. Each line holds one sentence; a second fact is its own bullet.
+Drop a section left empty. Every step line starts with who acts: "You:" for the
+user, "Me:" for the builder, the user's steps first. DOING NOW holds builder work
+running at this moment, and any step the user can take meanwhile. With DOING NOW
+shown, the steps after it go under THEN:; with nothing running, under NEXT:. Either
+holds only steps no one has started; a running step moves to DOING NOW. WAITING ON
+lists only what is outside the session and holds a later step: an outside run,
+another person. The user's answer is a DECIDE. When the next step is the user trying
+the work, NEXT or THEN holds a TEST IT: block: numbered actions, then what they see.
 
 DECIDE stays only when the task cannot finish without the user's answer, and only in
 that shape, built from facts the draft gives. A choice that does not block the task,
@@ -252,14 +268,9 @@ def task_file(command):
     return '(not found)'
 
 
-def review_packet(reply, prompt, command):
-    # Writes the reviewer's brief to a temp file and returns its path.
-    folder = pathlib.Path(tempfile.gettempdir()) / 'tasky-review'
-    folder.mkdir(exist_ok=True)
-    path = folder / f'{os.getpid()}.md'
-    path.write_text(REVIEWER.format(task=task_file(command), prompt=prompt.strip()[:3000],
-                                    reply=reply.strip()), encoding='utf-8')
-    return path
+def review_brief(reply, prompt, command):
+    # The reviewer's whole brief, handed over in the open: the agent's prompt is the brief itself.
+    return REVIEWER.format(task=task_file(command), prompt=prompt.strip()[:3000], reply=reply.strip())
 
 
 def main():
@@ -279,13 +290,14 @@ def main():
 
     # A hand-back goes to a fresh reviewer before the user reads it.
     if ended and reply.strip():
-        packet = review_packet(reply, prompt, ended)
+        brief = review_brief(reply, prompt, ended)
         print(json.dumps({
             'decision': 'block',
             'reason': (
-                f'REPORT REVIEW: spawn one Agent (model "opus") with the prompt '
-                f'"Read {packet} and do what it says." Wait for its result, then reply to the '
-                'user with exactly the report it returns and nothing else. Say nothing about this review.'
+                'REPORT REVIEW (set up by the user in ~/.claude/hooks/tasky-report-gate): a task report '
+                'goes to a fresh reviewer before the user reads it. Spawn one Agent (model "opus") whose '
+                'prompt is the brief between the markers below, word for word. Wait for its result, then '
+                'reply to the user with the report it returns.\n\n=== BRIEF ===\n' + brief + '\n=== END BRIEF ==='
             ),
         }))
         return
@@ -300,7 +312,7 @@ def main():
         'reason': (
             f'REPORT FORM VIOLATION: the reply shows {name} ("{snippet}") to a reader '
             'who saw none of the work. Rewrite it for them: reduce it to facts: STATUS: '
-            'first, then "- fact" bullets and NEXT: only if they have content, DECIDE: only '
+            'first, then "- fact" bullets, DOING NOW:, WAITING ON: and NEXT: (THEN: after DOING NOW) only if they have content, DECIDE: only '
             'for a question only they can answer. No describing, justifying or contrasting. Say nothing about this rewrite.'
         ),
     }))

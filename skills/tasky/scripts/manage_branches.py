@@ -26,6 +26,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import TASKY_ROOT, validate_slug, validate_slash_path
+from claims import other_holder
 
 MID_RE = re.compile(r"^branch--[0-9a-f]{8}$")
 
@@ -263,12 +264,13 @@ def drift_lines(project, data):
 
 
 def current_position(project, data):
-    """§7 — the milestone holding a doing task, else the newest open record's destination."""
+    """§7 — the milestone holding this session's doing task, else the newest open record's destination."""
     for t_key, order in data["tasks"].items():
         slugs, _ = split_markers(order)
         for slug in slugs:
-            status = read_task_status(task_file(project, t_key, slug))
-            if status and status.lower() == "doing":
+            path = task_file(project, t_key, slug)
+            status = read_task_status(path)
+            if status and status.lower() == "doing" and not other_holder(path):
                 return t_key
     newest = None
     for order, rec in enumerate(data["branches"].values()):
@@ -335,8 +337,9 @@ def cmd_open(args):
     for idx, slug in enumerate(origin_order):
         if is_marker(slug):
             continue
-        status = read_task_status(task_file(args.project, origin, slug))
-        if status and status.lower() == "doing":
+        path = task_file(args.project, origin, slug)
+        status = read_task_status(path)
+        if status and status.lower() == "doing" and not other_holder(path):
             doing_index, doing_slug, prior_status = idx, slug, status
             break
 

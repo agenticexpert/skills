@@ -10,7 +10,7 @@ All scripts live at `{skills}/scripts/`, where `{skills}` is the directory holdi
 
 ### Explicit — "branch to X"
 
-Resolve X to a destination t_key. The origin is the milestone holding the current DOING task; with none, the milestone in conversation focus. Create the destination milestone first (`structure.md`) when it does not exist. Then:
+Resolve X to a destination t_key. The origin is the milestone holding this session's DOING task, the one not marked `← another session`; with none, the milestone in conversation focus. Create the destination milestone first (`structure.md`) when it does not exist. Then:
 
 ```
 python {skills}/scripts/manage_branches.py open <project> <origin-t_key> <dest-t_key> [--oob]
@@ -20,13 +20,13 @@ Pass `--oob` when the destination work belongs out of band.
 
 ### Automatic — tasks created outside the current milestone
 
-When you create one or more tasks in a milestone other than the one holding the current DOING task, run the same `open` immediately after the creation. Do not ask first, do not offer the command, do not pause for confirmation.
+When you create one or more tasks in a milestone other than the one holding this session's DOING task, run the same `open` immediately after the creation. Do not ask first, do not offer the command, do not pause for confirmation.
 
 `open` prints one line naming the destination, the task that holds the return, and the undo command. Do not repeat that line (SKILL.md → **Always**).
 
 ### What `open` writes
 
-- The origin's DOING task goes PAUSED, and the status it held is recorded.
+- The origin's DOING task goes PAUSED, and the status it held is recorded. A DOING task another session holds stays as it is.
 - One marker row lands in the origin's order array, one in the destination's.
 - The return anchors on that paused task; with no DOING task at the origin, on the first PENDING task after the marker; with neither, on the origin milestone itself.
 

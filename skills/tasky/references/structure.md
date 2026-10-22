@@ -147,7 +147,7 @@ python {skills}/scripts/manage_tasks.py create <project> <roadmap> <track> <mile
 
 Creates `{slug}.md` with the standard template and registers in `project.json["tasks"]`.
 
-Creating tasks in a milestone other than the one holding the current DOING task also opens a branch — execute `branch.md` as part of the same creation.
+Creating tasks in a milestone other than the one holding this session's DOING task also opens a branch — execute `branch.md` as part of the same creation.
 
 ---
 
