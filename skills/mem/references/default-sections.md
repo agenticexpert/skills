@@ -10,7 +10,7 @@ most details will be captured in the other sections.
 
 ## `<evolution>`
 
-CRITICAL: Sequential narrative of how conversation evolved. Each entry is 1-3 sentences telling the story.
+A sequential narrative of how the conversation evolved. Each entry is 1-3 sentences telling the story.
 
 Format:
 ```text
@@ -36,7 +36,7 @@ Rules:
 
 ## `<timeline>`
 
-CRITICAL: Factual ledger of IMPORTANT events only. Brief entries, key milestones.
+A factual ledger of key events only. Brief entries, key milestones.
 
 Format:
 ```text

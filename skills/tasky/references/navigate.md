@@ -148,7 +148,7 @@ STATUS: <where the work stands — one plain fact>
 - <what blocks progress, if anything>
 
 DOING NOW:
-- <work running right now> [task id]
+- <who: Me, Agent, Pi, GPT, BG or another>: <work running right now> [task id]
 
 WAITING ON:
 - <an outside run or person the next step needs>
@@ -161,6 +161,6 @@ NEXT:  (THEN: when DOING NOW is shown)
 - Facts only — no describing, justifying, or contrasting.
 - A blocker also leads `NEXT:` as its own step, never as a branch or an A/B choice.
 - Work another session holds is never under `DOING NOW:`, `THEN:` or `NEXT:`; it goes under `WAITING ON:` only when a later step needs it.
-- Work running at this moment, and any step the user can take meanwhile, goes under `DOING NOW:`. With it shown, the steps after it go under `THEN:`; with nothing running, under `NEXT:`. Either holds only steps no one has started. An outside run or person a later step needs goes under `WAITING ON:`. Each appears only when it has a line.
+- Work running at this moment, and any step the user can take meanwhile, goes under `DOING NOW:`, each line starting with who runs it: `Me:` this chat, `Agent:` an agent it started, `Pi:`, `GPT:`, `BG:` a background command, or anyone or anything else by a short name for it. With `DOING NOW:` shown, `THEN:` names what comes after it: the next step and who takes it, or the next task. It never holds a step of the user's; theirs shows once the running work ends. With nothing running, the steps go under `NEXT:`. Either holds only steps no one has started. Every report shows what moves the work on: `DOING NOW:` with who runs it, or a `You:` step or `DECIDE:` for what the user does next. With nothing running, the next step is the user's, even when it is only saying go on the next task. An outside run or person a later step needs goes under `WAITING ON:`. Each appears only when it has a line.
 - A status answer never carries options, deferrals-dressed-as-choices, or a clarifier block — the Auto-Proceed Doctrine (`SKILL.md`) applied to this format.
 - A few words per step. No elaboration, no restating the board.

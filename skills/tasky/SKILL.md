@@ -65,7 +65,7 @@ STATUS: <where the work stands — one plain fact>
 - <what blocks progress, if anything>
 
 DOING NOW:
-- <work running right now> [task id]
+- <who: Me, Agent, Pi, GPT, BG or another>: <work running right now> [task id]
 
 WAITING ON:
 - <an outside run or person the next step needs>

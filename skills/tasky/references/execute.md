@@ -134,7 +134,7 @@ Unchanged under dispatch: READY not DONE, the disk re-read before READY, and the
 
 ## Background Dispatch
 
-Dispatch in the background. While the run is live the user sees one line from it — task slug and status DOING — and nothing else from the run.
+Dispatch in the background. While the run is live the user sees one line from it — task slug and status DOING — and nothing else from the run. The sub-agent starts the way team's route table says for the app this chat runs in (`~/.agents/skills/team/references/route.json` → `apps.<app>.start`), on this chat's model.
 
 **The sub-agent cannot ask.** On an un-inferable decision it stops, edits nothing further, and returns BLOCKED plus the one question. You set `paused` and surface it in SKILL.md → **Deciding** voice. A failed step returns BLOCKED the same way (flow-spec.md → **FAILURE BEHAVIOR**).
 
@@ -237,7 +237,7 @@ STATUS: <where this task stands — one short sentence>
 
 DOING NOW:
 - You: <a step you can take meanwhile>
-- Me: <a step of mine running right now>
+- <who: Me, Agent, Pi, GPT, BG or another>: <work running right now>
 
 WAITING ON:
 - <what holds the next step: an outside run, another person>
@@ -256,7 +256,7 @@ DECIDE: <the choice, in terms of what you would notice>
   - my pick: <option> — <what only you know that could change it>
 ```
 
-The criteria and their evidence proved the work to you; they are not the report. Every line passes one test: would the user, knowing only this task's goal, see at once why it is there? No → cut it. A warning stays only when the user must change course now. `STATUS:` comes first. Each line holds one sentence; a second fact is its own bullet. Every step line starts with who acts, `You:` or `Me:`, the user's steps first. `DOING NOW:` holds the builder's work running at this moment, and any step the user can take meanwhile. With `DOING NOW:` shown, the steps that come after it go under `THEN:`; with nothing running, under `NEXT:`. Either holds only steps no one has started. `WAITING ON:` lists only what is outside the session and holds a later step: an outside run, another person. The user's answer is a `DECIDE:`. When the next step is the user trying the work, `NEXT:` or `THEN:` holds a `TEST IT:` block: numbered actions, then what the user should see, as bullets.
+The criteria and their evidence proved the work to you; they are not the report. Every line passes one test: would the user, knowing only this task's goal, see at once why it is there? No → cut it. A warning stays only when the user must change course now. `STATUS:` comes first. Each line holds one sentence; a second fact is its own bullet. Every step line starts with who acts, the user's steps first: `You:` the user; `Me:` this chat; `Agent:` an agent this chat started; `Pi:` a pi run; `GPT:` a Codex run; `BG:` a command running in the background; anyone or anything else, by a short name for it (`CI:`, `Gemini:`, a person's name). `DOING NOW:` holds each of those running at this moment, and any step the user can take meanwhile. With `DOING NOW:` shown, `THEN:` names what comes after it: the next step and who takes it, or the next task. It never holds a step of the user's; theirs shows once the running work ends. With nothing running, the steps go under `NEXT:`. Either holds only steps no one has started. Every report shows what moves the work on: `DOING NOW:` with who runs it, or a `You:` step or `DECIDE:` for what the user does next. With nothing running, the next step is the user's, even when it is only saying go on the next task. `WAITING ON:` lists only what is outside the session and holds a later step: an outside run, another person. The user's answer is a `DECIDE:`. When the next step is the user trying the work, `NEXT:` holds a `TEST IT:` block: numbered actions, then what the user should see, as bullets.
 
 `DECIDE:` appears only when the task cannot finish without the user's answer. It names the choice by what the user would notice, what each option changes for them, the builder's pick, and what only the user knows that could change it. A choice that does not block the task, or that can only be named in code terms, is not a DECIDE.
 
