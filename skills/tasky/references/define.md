@@ -59,7 +59,7 @@ If no tasks exist yet, ask:
 - What are the discrete pieces — things that could be reviewed or verified independently?
 - What can't start until something else finishes?
 
-From the answers, propose a task sequence. Name them, order them, surface dependencies. Don't detail yet — get them on the board first.
+From the answers, propose a task sequence. Name them, order them, surface dependencies. Don't detail yet — create them first.
 
 Create stubs:
 ```

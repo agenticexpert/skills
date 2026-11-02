@@ -81,7 +81,7 @@ Route every action on the data root (`{root}/`) through a `references/*.md` play
 
 ## Step 5 — Install the hooks
 
-- `{skills}/hooks/tasky-route` (UserPromptSubmit) puts the routing rule next to every prompt, so a follow-up such as "done" or "what's next" goes through tasky and re-reads the board.
+- `{skills}/hooks/tasky-route` (UserPromptSubmit) puts the routing rule next to every prompt, so a follow-up such as "done" or "what's next" goes through tasky and re-reads the tasks.
 - `{skills}/hooks/tasky-report-gate` (Stop) enforces the report form. It sends each task hand-back to a fresh reviewer that cuts every line the user would not see the point of, and rejects any reply that shows tasky internals to the user.
 
 Ask which scope the user wants:

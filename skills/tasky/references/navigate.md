@@ -57,7 +57,7 @@ Then run the script with the resolved slugs.
 
 ## Default (No Noun Named)
 
-If — and only if — the user gives no hierarchy noun ("show me everything", "the whole board"), run the full tree. A status ask — "status", "where are we?", "what's next?" — is not this; it gets the STATUS form under **Interpreting Results**:
+If — and only if — the user gives no hierarchy noun ("show me everything", "the whole project"), run the full tree. A status ask — "status", "where are we?", "what's next?" — is not this; it gets the STATUS form under **Interpreting Results**:
 
 ```
 python {skills}/scripts/view_all.py
@@ -163,4 +163,4 @@ NEXT:  (THEN: when DOING NOW is shown)
 - Work another session holds is never under `DOING NOW:`, `THEN:` or `NEXT:`; it goes under `WAITING ON:` only when a later step needs it.
 - Work running at this moment, and any step the user can take meanwhile, goes under `DOING NOW:`, each line starting with who runs it: `Me:` this chat, `Agent:` an agent it started, `Pi:`, `GPT:`, `BG:` a background command, or anyone or anything else by a short name for it. With `DOING NOW:` shown, `THEN:` names what comes after it: the next step and who takes it, or the next task. It never holds a step of the user's; theirs shows once the running work ends. With nothing running, the steps go under `NEXT:`. Either holds only steps no one has started. Every report shows what moves the work on: `DOING NOW:` with who runs it, or a `You:` step or `DECIDE:` for what the user does next. With nothing running, the next step is the user's, even when it is only saying go on the next task. An outside run or person a later step needs goes under `WAITING ON:`. Each appears only when it has a line.
 - A status answer never carries options, deferrals-dressed-as-choices, or a clarifier block — the Auto-Proceed Doctrine (`SKILL.md`) applied to this format.
-- A few words per step. No elaboration, no restating the board.
+- A few words per step. No elaboration, no restating the tasks.

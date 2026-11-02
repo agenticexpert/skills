@@ -98,7 +98,7 @@ EXECUTE: references/brainstorm.md
 
 ## Always
 
-- Every later message in the session that reports work done, asks what's next or where things stand, or changes tracked work re-reads the board with the scripts before answering. Never answer from an earlier view of the board.
+- Every later message in the session that reports work done, asks what's next or where things stand, or changes tracked work re-reads the tasks with the scripts before answering. Never answer from an earlier read of the tasks.
 - **Every reply that ends work on a task — finished, paused, or stopped — takes the form in `references/report.md`:** `STATUS:` first. Every line passes one test: would the user, knowing only this task's goal, see at once why it is there? No → cut it.
 - Every other tasky reply follows the same reader rule. Plain conversation and code stay untouched.
 - A view ask ("show the tasks", "list X", "show the milestone") → the reply is the script's output in a code block, exactly as printed, and nothing else. Never retype, rename, reorder, drop a column or add a note or summary. Any other reply never repeats script output.

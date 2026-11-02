@@ -20,7 +20,7 @@ The user wants to work a task. Identify which task, load it, do the work, update
 
 **User says "next"** (bare) — two cases:
 - An unmarked DOING task exists in the milestone → resume it, and say so in one line: *"Resuming `{doing-task}`. Say 'start the next one' to switch."* No menu.
-- No unmarked DOING task exists → first task in sequence with status `pending` or `paused`. A marked milestone holds none for you; take the first one in the next unmarked milestone on the board. If the next task is `todo` (undefined stub), define it inline from milestone context — the content bar is define.md → **Detail Levels** and **Writing the Task File**, the status flip to `pending` is define.md → **Exit** — then execute. State what you wrote.
+- No unmarked DOING task exists → first task in sequence with status `pending` or `paused`. A marked milestone holds none for you; take the first one in the next unmarked milestone in sequence. If the next task is `todo` (undefined stub), define it inline from milestone context — the content bar is define.md → **Detail Levels** and **Writing the Task File**, the status flip to `pending` is define.md → **Exit** — then execute. State what you wrote.
 
 **Either "next" case, in a milestone that is a branch destination** — run the return check in `branch.md` → **Returning** before selecting a task. A resolved hop names where to go; nothing resolved means stay here.
 

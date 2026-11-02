@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-# UserPromptSubmit: puts tasky's routing rule next to every prompt in a project with a tasky board.
+# UserPromptSubmit: puts tasky's routing rule next to every prompt in a project tracked with tasky.
 # Inert unless a tasky.md is in force. Set TASKY_ROUTE=off in the environment to disable.
 
 import os
 import pathlib
 
 RULE = """\
-TASKY — this project tracks its work on a tasky board.
+TASKY — this project tracks its work as tasky tasks.
 If this message reports work done, asks what's next or where things stand, or plans, adds, \
 changes, validates or finishes tracked work — or says /tasky anywhere in it — invoke the tasky \
-skill and read the board with its scripts before answering. Never answer from an earlier view \
-of the board. Any other message: ignore this."""
+skill and read the tasks with its scripts before answering. Never answer from an earlier read \
+of the tasks. Any other message: ignore this."""
 
 
 def tasky_in_force():
