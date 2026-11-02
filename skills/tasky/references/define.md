@@ -112,6 +112,8 @@ Fill in only what's needed. Leave sections blank if they add no value.
 - **References** — only paths that will actually be read during execution, and every file any line of the task cites or draws a fact from.
 - **Task** — the instruction in impact/execution form. What to do and what it achieves — not background. If populated, Criteria becomes the acceptance gate only.
 
+When the task adds a component, control, function or style: search the project for one that already does the job, by what it does and by the name the user sees. Name the one found in the task and tell the builder to use it, or to extract it when it sits inside another file. Name a new one only when the search finds none, and say so in the task.
+
 ---
 
 ## Exit
