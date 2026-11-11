@@ -1,6 +1,6 @@
 # Storypad
 
-**A place to plan a story and take it to a first cut: what's in it, in what order, and what's left
+**A place to plan a story and take it to a rough cut: what's in it, in what order, and what's left
 to do.**
 
 A story is plain markdown you can read, edit and version: an `index.md` with the premise, the scene
@@ -10,7 +10,8 @@ always the files' own.
 
 ## The flow
 
-- **new**: start a story or a series for a venue (`/storypad new my-video`).
+- **new**: start a story or a series for a venue (`/storypad new my-video`). A new story or episode
+  opens with the venue's first and last scenes (Intro and Wrapup on YouTube) and their beats.
 - **pipeline**: "make me a video about X" runs outline, shots, a prompt per shot, takes and the cut
   in one go. Storypad never makes media: the prompts are for the tool that makes the video, and
   the run stops at them until the user gives the files. On a story that already has scenes and
@@ -23,10 +24,12 @@ always the files' own.
 - **refine**: review the outline for audience, pacing, story and venue. A question gets the review;
   an ask to refine applies the fixes.
 - **shots**: each scene's shots, transitions and layers (sound, music, titles, effects), drawn as a
-  strip at story, scene and shot zoom.
+  strip at story, scene and shot zoom. A layer can carry on across scenes, such as one piece of
+  music; the whole run shares one file, and swapping it on any scene swaps it for the run.
 - **takes and pins**: the files the user gives for each shot, one approved; a pin keeps one aspect of a
   file over a shot, a scene or the story, so every later take holds it.
-- **cut**: `cut.mp4` from the approved takes and the layer files, with ffmpeg.
+- **cut**: a rough cut, like an animatic, for checking flow and timing: `cut.mp4` from the approved
+  takes and the layer files, with titles drawn from their text, made with ffmpeg.
 - **reorder**: a scene's number is its place, so moving, adding or removing one renumbers the
   scenes after it and their shot ids follow; names and files stay. Removing a scene or shot that
   holds a script, ticked beats or takes needs `--force`.
