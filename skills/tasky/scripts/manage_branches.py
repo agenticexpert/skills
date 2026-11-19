@@ -306,7 +306,7 @@ def cmd_open(args):
     if origin == dest and not args.oob:
         fail(f"'{dest}' is the origin milestone — a same-milestone destination never branches.")
 
-    existing = record_for_destination(data, dest)
+    existing = record_for_destination(data, dest, open_only=True)
     if existing is not None:
         print(
             f"'{label(dest)}' already returns through {existing['id']} — "
@@ -314,7 +314,7 @@ def cmd_open(args):
         )
         sys.exit(1)
 
-    origin_rec = record_for_destination(data, origin)
+    origin_rec = record_for_destination(data, origin, open_only=True)
     if origin_rec is not None:
         reachable = set()
         for rec in parent_chain(data, origin_rec["id"]):
@@ -372,7 +372,7 @@ def cmd_open(args):
 
     parent = None
     for other_mid, other in data["branches"].items():
-        if other.get("destination") == origin:
+        if other.get("destination") == origin and other.get("state") == "open":
             parent = other_mid
             break
 
