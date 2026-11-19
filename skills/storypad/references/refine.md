@@ -8,10 +8,12 @@
    - **Pacing:** scene sizes vary, no three similar scenes run together, no scene holds eight or
      more beats, and the energy builds.
    - **Story:** the problem or question is set up early, each scene builds on the last and leads
-     into the next, and the payoff lands.
+     into the next, and the payoff lands. Read `storypad.py show <story> --view threads`; flag each
+     set up with no pays off, each pays off with no set up before it, and each scene no thread
+     passes through.
    - **Venue:** the conventions in `venues/<venue>.md` hold.
    - **Series** (episodes only): the episode fits its arc position, advances or calls back to the
-     active threads in `series.md`, and ends on a reason to watch the next.
+     world's active threads, and ends on a reason to watch the next.
 3. Report each lens as lines marked `[pass]`, `[flag]` or `[fix]`; each fix names a concrete change
    to the scenes.
 4. A question ("is this working?", "how does it flow?") ends here, with the report. An ask for

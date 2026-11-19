@@ -16,13 +16,17 @@ The user wants to work a task. Identify which task, load it, do the work, update
 
 **User says "continue" or "resume"** — if there is an unmarked DOING task in the known milestone context, that is the task. If the milestone isn't known, infer it from the conversation thread, or from the sole unmarked DOING task. Only when neither exists is it a blocker (SKILL.md → **Deciding**, BLOCKER).
 
-**User says "start the next one" / "skip ahead" / "skip it"** — the explicit skip. Match this before the bare "next" case below. Pause the DOING task per **Pausing**, then take the first task in sequence *after that one* with status `pending` or `paused`. Never re-select the task just paused.
+**User says "start the next one" / "skip ahead" / "skip it"** — the explicit skip. Match this before the bare "next" case below. Pause the DOING task per **Pausing**, then take the task **Selecting the Next Task** gives, leaving out the task just paused.
 
 **User says "next"** (bare) — two cases:
 - An unmarked DOING task exists in the milestone → resume it, and say so in one line: *"Resuming `{doing-task}`. Say 'start the next one' to switch."* No menu.
-- No unmarked DOING task exists → first task in sequence with status `pending` or `paused`. A marked milestone holds none for you; take the first one in the next unmarked milestone in sequence. If the next task is `todo` (undefined stub), define it inline from milestone context — the content bar is define.md → **Detail Levels** and **Writing the Task File**, the status flip to `pending` is define.md → **Exit** — then execute. State what you wrote.
+- No unmarked DOING task exists → take the task **Selecting the Next Task** gives.
 
-**Either "next" case, in a milestone that is a branch destination** — run the return check in `branch.md` → **Returning** before selecting a task. A resolved hop names where to go; nothing resolved means stay here.
+**Selecting the Next Task** — both "next" cases select this way:
+1. In a milestone that is a branch destination, run the return check in `branch.md` → **Returning** first. A resolved hop names where to go; nothing resolved means stay here.
+2. Read the milestone's order now and walk it from the top every time, never onward from the current or last task: a task inserted or moved above it comes first.
+3. Take the first task with status `pending`, `paused` or `todo` whose dependencies are all DONE. A marked milestone holds none for you; take the first one in the next unmarked milestone in sequence.
+4. That task is `todo` (undefined stub) → define it inline from milestone context — the content bar is define.md → **Detail Levels** and **Writing the Task File**, the status flip to `pending` is define.md → **Exit** — then execute. State what you wrote.
 
 **User names a milestone, or asks to work several tasks** — that is **Milestone Mode** below; take its tasks in sequence.
 
@@ -227,40 +231,9 @@ Before setting READY, re-read the task file from disk — every criterion `[x]` 
 python manage_tasks.py set-status <project> <roadmap> <track> <milestone> <slug> ready
 ```
 
-Then hand back to the user. This hand-back is the step's ONLY user-facing output, and it always takes the form in `references/report.md` — never a raw status line, never a machine dump. Cannot render the form → surface that as a blocker; never fall back to internals.
+Then hand back to the user. This hand-back is the step's ONLY user-facing output, and it always takes the form in `references/report.md` — never a raw status line, never a machine dump. Cannot render the form → surface that as a blocker; never fall back to internals. Read `references/report.md` before writing it. The criteria and their evidence proved the work to you; they are not the report.
 
-```
-STATUS: <where this task stands — one short sentence>
-
-- <a fact>
-  - <a detail of that fact>
-
-DOING NOW:
-- You: <a step you can take meanwhile>
-- <who: Me, Agent, Pi, GPT, BG or another>: <work running right now>
-
-WAITING ON:
-- <what holds the next step: an outside run, another person>
-
-NEXT:  (THEN: when DOING NOW is shown)
-  TEST IT:
-    1. <what to do>
-    2. <what to do>
-
-    - <what you should see>
-- Me: <my next step toward this task's goal>
-
-DECIDE: <the choice, in terms of what you would notice>
-  - <option>: <what it changes for you>
-  - <option>: <what it changes for you>
-  - my pick: <option> — <what only you know that could change it>
-```
-
-The criteria and their evidence proved the work to you; they are not the report. Every line passes one test: would the user, knowing only this task's goal, see at once why it is there? No → cut it. A warning stays only when the user must change course now. `STATUS:` comes first. Each line holds one sentence; a second fact is its own bullet. Every step line starts with who acts, the user's steps first: `You:` the user; `Me:` this chat; `Agent:` an agent this chat started; `Pi:` a pi run; `GPT:` a Codex run; `BG:` a command running in the background; anyone or anything else, by a short name for it (`CI:`, `Gemini:`, a person's name). `DOING NOW:` holds each of those running at this moment, and any step the user can take meanwhile. With `DOING NOW:` shown, `THEN:` names what comes after it: the next step and who takes it, or the next task. It never holds a step of the user's; theirs shows once the running work ends. With nothing running, the steps go under `NEXT:`. Either holds only steps no one has started. Every report shows what moves the work on: `DOING NOW:` with who runs it, or a `You:` step or `DECIDE:` for what the user does next. With nothing running, the next step is the user's, even when it is only saying go on the next task. `WAITING ON:` lists only what is outside the session and holds a later step: an outside run, another person. The user's answer is a `DECIDE:`. When the next step is the user trying the work, `NEXT:` holds a `TEST IT:` block: numbered actions, then what the user should see, as bullets.
-
-`DECIDE:` appears only when the task cannot finish without the user's answer. It names the choice by what the user would notice, what each option changes for them, the builder's pick, and what only the user knows that could change it. A choice that does not block the task, or that can only be named in code terms, is not a DECIDE.
-
-Wait. Do not mark DONE until the user confirms.
+Do not mark DONE until the user says so. Never prompt for it.
 
 Once the user confirms:
 

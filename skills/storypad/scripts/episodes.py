@@ -4,11 +4,11 @@ added, moved and renamed by place, and the series shown and synced.
 
 import re
 
-import timeline
-from continuity import THREAD_ICON, parse_threads, renumber_threads, thread_end, threads_table
-from scenes import STAGES, mini, old, open_counts, read_story, story_new, sync_story, writable
-from storyfile import (FIXED, TimelineError, cell, dated, frontmatter, listed, listing, meta_pairs, named,
-    put_frontmatter, replace_section, save, sections, slug, top, unique)
+from continuity import THREAD_ICON, episode_tag, series_story
+from scenes import (STAGES, check, keeps_own, mini, old, open_counts, read_story, run_of, story_new,
+    sync_story, todo, world_key, writable)
+from storyfile import (FIXED, TimelineError, cell, dated, frontmatter, listed, listing, listing_problems, meta_pairs,
+    named, put_frontmatter, replace_section, save, sections, slug, top, unique)
 from venues import template
 
 OLD_EPISODE = re.compile(r'^ep-(\d+)(?:-(.*))?$')
@@ -16,8 +16,7 @@ ARC = ('Ep', 'Title', 'Folder', 'Status', 'Arc Position', 'Premise')
 
 
 def series_doc(path):
-    """series.md, read: the episode folders in the order of its Episode Arc table, the threads and
-    the pins. Refused in the old layout."""
+    """series.md, read: the episode folders in the order of its Episode Arc table. Refused in the old layout."""
     doc = path / 'series.md'
     text = doc.read_text(encoding='utf-8')
     body = sections(text)
@@ -30,29 +29,24 @@ def series_doc(path):
     numbered = [n for n in dirs if OLD_EPISODE.match(n) and n not in rows]
     if numbered:
         raise TimelineError(old(path, f'{numbered[0]} is a numbered episode folder'))
-    threads_head, threads = parse_threads(body.get('continuity threads'))
-    pins_head, pins = timeline.parse_pins(body.get('pins'), thread_end([t['thread'] for t in threads]))
     return {'path': path, 'text': text, 'fm': frontmatter(text), 'doc': doc, 'head': head, 'folders': folders,
-            'rows': rows, 'odd': odd, 'unlisted': unlisted, 'threads_head': threads_head, 'threads': threads,
-            'pins_head': pins_head, 'pins': pins}
+            'rows': rows, 'odd': odd, 'unlisted': unlisted}
 
 
-def read_series(path):
+def read_series(path, world=None):
+    """A series and its episodes; `world` is its world's world.md, read. A series keeping its own assets,
+    locations, threads, events or pins is the older layout."""
     if not is_series(path):
         raise TimelineError(f'{path} is not a series: it has no series.md')
     series = series_doc(path)
-    series['episodes'] = [read_story(path / f, series) for f in series['folders']]
+    series.update(world=world, key=world_key(path, world['path']) if world else path.name)
+    keeps_own(path, sections(series['text']))
+    series['episodes'] = [read_story(path / f, series, world) for f in series['folders']]
     return series
 
 
 def is_series(path):
     return (path / 'series.md').exists()
-
-
-def story_at(path):
-    """A story, with its series' series.md read when it is an episode."""
-    parent = path.resolve().parent
-    return read_story(path, series_doc(parent) if (path / 'index.md').is_file() and is_series(parent) else None)
 
 
 def series_status(series):
@@ -72,25 +66,19 @@ def show_series(series):
         out.append(f"  {e['num']:<3} {e['title']:<{w}}  {e['status']:<13}  {e['row'].get('arc position', ''):<10}  "
                    f"{mini(e['done'], e['total'])} {e['done']}/{e['total']}  "
                    f"{open_counts(e['open']) if e['scenes'] else 'no scenes yet'}")
-    if series['threads']:
-        out += ['', '  Continuity threads']
+    threads = [t for t in series_story(series)['threads'] if t['runs']]
+    if threads:
+        out += ['', '  Threads']
         out += [f"  {THREAD_ICON.get(t['status'], '?')} {t['thread']}  [{t['status']}]  "
-                f"episodes: {t['episodes'] or '—'}" for t in series['threads']]
-    if series['pins']:
-        out += ['', '  Pins']
-        out += [f"  {p['name']}  keep {p['keep']}  ·  {p['from'] or 'every episode'}  ·  {p['ref']}"
-                + (f"  ·  {p['note']}" if p['note'] else '') for p in series['pins']]
+                f"episodes: {t['episodes']}" for t in threads]
     return '\n'.join(out)
 
 
 def series_text(series):
-    """series.md with the episode arc, the threads, the pins and the status as the series now holds them."""
+    """series.md with the episode arc and the status as the series now holds them."""
     rows = [{**e['row'], 'ep': str(e['num']), 'title': e['title'], 'folder': e['path'].name, 'status': e['status'],
              'premise': e['row'].get('premise') or e['fm'].get('premise', '')} for e in series['episodes']]
     text = replace_section(series['text'], 'Episode Arc', listed(series['head'], rows, series['odd'], ARC))
-    text = replace_section(text, 'Continuity Threads', threads_table(series['threads_head'], series['threads']),
-                           before='Pins')
-    text = replace_section(text, 'Pins', timeline.pins_table(series['pins_head'], series['pins']), before='Notes')
     if 'status' in series['fm']:
         text = put_frontmatter(text, 'status', series_status(series))
     return dated(series['text'], text)
@@ -105,7 +93,20 @@ def save_series(series):
 def episode_changed(story):
     """series.md rewritten after a change to `story`, when it is an episode."""
     if story['num']:
-        save_series(read_series(story['path'].resolve().parent))
+        save_series(read_series(story['path'].resolve().parent, story['world']))
+
+
+def series_todo(series, only):
+    """Each episode's open tasks."""
+    return '\n'.join(line for e in series['episodes'] for line in todo(e, episode_tag(e), only=only)) or 'no episodes yet'
+
+
+def series_check(series):
+    """What check names in series.md (its arc), then in each episode."""
+    present = {e['path'].name for e in series['episodes']}
+    found = listing_problems('Episode Arc', series, 'folder', present, '')
+    return '\n'.join([f'  {p}' for p in found] + [f"ep {e['num']} {e['title']}\n{check(e)}"
+                                                  for e in series['episodes']]) or 'no episodes yet'
 
 
 def sync_series(series, episodes):
@@ -126,9 +127,13 @@ def find_episode(series, ref):
                         f"{', '.join(str(e['num']) for e in series['episodes']) or 'none yet'}")
 
 
+def picked_episodes(series, at):
+    """The episodes `at` names: one episode number, or a run `<from>-<to>`."""
+    return run_of(series['episodes'], at, lambda ref: find_episode(series, ref))
+
+
 def renumber_episodes(series, episodes):
-    """Put the episodes in the order `episodes`, numbered by place; thread numbers follow."""
-    renumber_threads(series['threads'], {e['num']: n for n, e in enumerate(episodes, 1) if e['num']})
+    """Put the episodes in the order `episodes`, numbered by place."""
     for n, e in enumerate(episodes, 1):
         e['num'] = n
         if not top(e['text']):
@@ -158,7 +163,7 @@ def episode_add(series, title, before, meta):
         text = put_frontmatter(text, k, v or None)
     folder = series['path'] / f"ep-{unique(slug(title) or 'episode', lambda k: (series['path'] / f'ep-{k}').exists())}"
     story_new(folder, text, series)
-    renumber_episodes(series, eps[:at] + [read_story(folder, series)] + eps[at:])
+    renumber_episodes(series, eps[:at] + [read_story(folder, series, series['world'])] + eps[at:])
     save_series(series)
 
 

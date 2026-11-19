@@ -187,7 +187,7 @@ Flow:
 Leave Dependencies empty if none. List only tasks that are not DONE. Description, Goal, Criteria, and Task start empty — they fill in during execution.
 
 **Body rules (validate enforces these):**
-- `## Criteria` must contain at least one checkbox item, and every box must be checked before status can reach READY or DONE
+- `## Criteria` must not be empty, and every box must be checked before status can reach READY or DONE
 - `## References` entries must be file paths only — one per bullet, bare or backtick-wrapped; no prose, no wikilinks
 - `Dependencies` slugs must all be DONE before this task can be marked DONE
 

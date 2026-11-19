@@ -1,6 +1,6 @@
 ---
 name: storypad
-description: Plan a story as plain files and take it to a first cut, tracking how complete it is, its scene order and what's left to do. Brainstorm into notes, outline into scenes with beats and prep, write each scene's script, lay out shots, transitions, sound, music, titles and effects on a timeline, write a prompt per shot for the tool that makes the video, record each shot's takes and the approved one, pin what must stay the same across takes and episodes, render the first cut, refine, reorder, and compile the script; a series tracks its episodes and continuity threads. Use for "/storypad", "make me a video about X", "just pipeline it", "brainstorm / outline / storyboard this video", "show the timeline", "add a dissolve / music / a title", "write the shot prompts", "use this take", "keep this look", "pin this", "cut it together", "plan a series", "write the script", "what's left on the story", "reorder the scenes", "compile the script".
+description: Plan a story as plain files and take it to a rough cut, tracking how complete it is, its scene order and what's left to do. Brainstorm into notes, outline into scenes with beats and prep, write each scene's script, lay out shots, transitions, sound, music, titles and effects on a timeline, write a prompt per shot for the video tool, record each shot's takes and pick one, pin what must stay the same across takes and stories, render the rough cut, refine, reorder, and compile the script; a world shares assets, locations, threads, events and a timeline across its stories; a series is a watching order. Use for "/storypad", "make me a video about X", "pipeline it", "brainstorm / outline / storyboard this video", "show the timeline", "add a dissolve / music / a title", "write the shot prompts", "use this take", "keep this look", "pin this", "cut it together", "plan a series", "write the script", "what's left on the story", "reorder the scenes", "compile the script", "show the threads", "list what's missing".
 license: MIT
 ---
 
@@ -15,16 +15,27 @@ Plan a story in plain files and track how complete it is, its scene order and wh
 
 ```
 agents/storypad/stories/
-├── <story>/                    a single piece
-│   ├── index.md                frontmatter, premise, scene table, pins, notes, scratchpad, references
-│   ├── scenes/<key>.md         one file per scene, named in the scene table's File column
-│   ├── assets/                 the files takes, layers and pins keep
-│   ├── script.md               written by compile
-│   └── cut.mp4                 written by cut
-└── <series>/
-    ├── series.md               episode arc, continuity threads, pins, recurring elements
-    └── ep-<key>/               one story folder per episode, named in the arc's Folder column
+└── <world>/                    every story sits in a world
+    ├── world.md                timeline (moments), threads, events, assets, locations, pins on shared
+    │                           things, notes
+    ├── assets/                 the files the world's records and pins keep
+    ├── <story>/                a single piece
+    │   ├── index.md            frontmatter (its `when`), premise, scene table, its own pins, notes,
+    │   │                       scratchpad, references
+    │   ├── scenes/<key>.md     one file per scene, named in the scene table's File column
+    │   ├── assets/             the files its takes, layers and own pins keep
+    │   ├── script.md           written by compile
+    │   └── cut.mp4             written by cut, a rough cut
+    └── <series>/
+        ├── series.md           premise and episode arc: the order the audience watches
+        └── ep-<key>/           one story folder per episode, named in the arc's Folder column
 ```
+
+A world holds everything its stories share: assets (actors, props), locations and their versions, all
+threads and events, pins on shared things, and its timeline, the moments in order. A story keeps only
+its own: scenes, shots, takes, script, layers, the cut, and pins over its own shots or the whole story
+(a colour grade). A story's `when` names the moment it is set at; the same `when` is the same time. A
+series is only the order the audience watches its episodes; the world's time can differ.
 
 ```markdown
 # Intro
@@ -40,11 +51,14 @@ The words, freeform.
 ```
 
 Check a box once its beat or prep item is made, never before. A scene with every box checked is
-done.
+done. A prep line names what it waits on as `@name`: an asset (a person cast, a prop, a recording)
+or a location (a set, a place), each a record of the world with its expectation and a state, `needed`,
+`made` or `approved`. A location's variation, `@ditch/panel-open`, is the place from a moment of the
+world's timeline on.
 
 A scene's number is its row in the scene table: adding, moving or removing a scene renumbers the
 scenes after it, and their shot and take ids follow (scene 2 becomes 3, shot 2a becomes 3a). An
-episode's number is its row in the episode arc, and thread episode numbers follow it. Take numbers
+episode's number is its row in the episode arc. Take numbers
 and ids from the latest `storypad.py` output. A scene's name is its file's `# ` line, whatever the
 user calls it; with none it shows as "Scene 3".
 
@@ -56,8 +70,9 @@ for what it shows, a length when it is known, and ends `cut`, `match`, `dissolve
 `3a.1`, `3a.2`; the approved one is `3a.2+`. A layer is anything that runs over the shots: sound,
 music, a title, an effect, with its file once there is one. A pin keeps one aspect of a made or
 found file (a look, a face, a line, a sound) over a shot, a scene, a run of them, or the whole
-story, so every later take holds it; `all` keeps the file exactly. A series pin rides a continuity
-thread and holds in every episode the thread lists.
+story, so every later take holds it; `all` keeps the file exactly. A pin on a shared thing is the
+world's: from a thread it holds over the thread's shots in each story, from `@name` over the shots
+using the record, from a series over its episodes, and with no `--from` over every story.
 
 `storypad.py new` and `episode add` start `index.md` and `series.md` from the templates in
 `venues/<venue>.md`; use that venue's vocabulary, scene flow and beat codes. The default venue is `youtube`.
@@ -66,12 +81,19 @@ scene named like one of them with its beats.
 
 ## Rules
 
-- Write only inside the named story's folder and its series' folder.
+- Write only inside the named story's folder, its series' folder, and its world's `world.md` and
+  `assets/`.
 - Never make an image, clip or sound. A shot's file comes from the user; a shot with none stays
   open.
 - Add, move, rename and remove scenes only with `storypad.py scene`, and episodes only with
   `episode`. Change shots, layers, takes, pins and threads only with `storypad.py shot`, `layer`,
-  `take`, `pin` and `thread`. Name a shot in two or three words for what is seen.
+  `take`, `pin`, `thread`, `event`, `asset` and `location`. Name a shot in two or three words for
+  what is seen, and an event in two or three words.
+- The owner ticks prep boxes and approves records. The agent ticks a box or approves a record only
+  when it is obvious (the file plainly is what the line or the expectation says) and names each one
+  in the reply; in doubt, it names what to check. Never untick the owner's tick, and never tick a box
+  on a file's arrival alone.
+- A record needs its expectation in the owner's words: none given → ask for it before `add`.
 - Run `storypad.py sync` after every change to beats, prep or script. Sync writes the status, the
   counts, the scene table in `index.md` and the episode arc in `series.md`.
 - Status is how far the story work has got: `brainstorming` (no scenes) → `outlining` (scenes) →
@@ -81,7 +103,8 @@ scene named like one of them with its beats.
   no file yet; on the cut, each problem `check` names.
 - A series' status is its episode furthest behind. Every command that changes an episode, and its
   `sync`, rewrites the episode arc and status in `series.md`.
-- Storypad is a board. It never judges whether a story is ready for anything.
+- Storypad is a board. It never judges whether a story is ready for anything, and never calls a scene
+  blocked, ready or finished.
 - Add to Notes; never delete or rewrite the user's notes.
 - Answer progress, order and what's left from `storypad.py`, run this turn. Show its strips,
   charts and lists in a code block exactly as printed; never draw one by hand.
@@ -95,8 +118,11 @@ scene named like one of them with its beats.
   the story's words and ask which they meant.
 - A remove refused for the work it would lose lists that work: show the user the list, and rerun
   with `--force` only on their yes.
-- A command refused with `storypad migrate <path>`: run that command, then the refused one again,
-  and tell the user the story's files were updated to the current layout.
+- A command refused with `storypad migrate <path>`: run that command, then the refused one again on
+  the path it prints for the story (a story wrapped in a world moves to `<path>/<name>`), and tell the
+  user the story's files were updated to the current layout. An older story joins a world already
+  there with `migrate <path> --into <world>`; a name both keep is refused: ask the owner which side to
+  rename.
 - Name a shot by its id and name, "3c Digging", and a scene by its number and name.
 - Reply in the story's words and the venue's vocabulary. Leave out commands, script names and how
   the files are kept.
@@ -105,16 +131,19 @@ scene named like one of them with its beats.
 
 | Ask | Do |
 |---|---|
-| New story or series | `references/new.md` |
-| "Make me a video about X", "just pipeline it", take it to a cut | `references/pipeline.md` |
+| New story or series, a new world, a story in an existing world | `references/new.md` |
+| When a story happens, a prequel, "same time as", the world's timeline | `references/new.md` → **The timeline** |
+| Show the world, "what's in this world" | `storypad.py show <world>`; `--view assets\|locations\|threads\|small\|events` for every story's |
+| "Make me a video about X", "pipeline it", take it to a cut | `references/pipeline.md` |
 | "Keep going", "continue", "what's next" on a started story | `references/pipeline.md` → **Keep going** |
 | Brainstorm, explore ideas, "what if" | `references/brainstorm.md` |
 | Outline, add or remove a scene, change beats | `references/outline.md` |
 | Refine, review the outline, "is this working", "tighten it" | `references/refine.md` |
 | Write the script, a scene's words, "draft the narration"; "tighten" naming the script, narration or a scene's words | `references/script.md` |
-| Add an episode, continuity, callbacks | `references/series.md` |
+| Add an episode, continuity across episodes, callbacks | `references/series.md` |
 | Lay out the shots, storyboard it | `references/outline.md` → **Shots** |
 | Add or change a shot, a transition, a sound, music, a title, an effect | `references/outline.md` → **Shots** |
+| Pick a shot's framing, camera move, transition, hold or reveal timing; name an effect | `references/observations.md`: its rules, timings and **Vocabulary** terms |
 | Swap the music, replace a sound, title or effect | `storypad.py layer set <story> <scene> <name> --file <file>`; `references/outline.md` → **Shots** |
 | Keep this, pin this, "same look as before" | `references/pins.md` |
 | A prompt for a shot or scene, "write the shot prompts" | `references/pins.md` → **Prompts** |
@@ -134,9 +163,26 @@ scene named like one of them with its beats.
 | Where it stands, what's done | `storypad.py show <story> --view breakdown\|table\|gantt` |
 | Does the timeline hold together | `storypad.py check <story>` |
 | What's left, the to-do list | `storypad.py todo <story>` |
+| "What's blocking 3", "what's left on Looked up" | `storypad.py todo <story> <scene>`; a run: `<from>-<to>` |
+| "What still needs filming", "which shots have no take" | `storypad.py todo <story> --only shots` |
+| "Show the threads", "how do the threads connect", "what leads to what" | `storypad.py show <story> --view threads` |
+| "Show the story small", "zoom out", "the whole shape" | `storypad.py show <story> --view small` |
+| "What's on screen when", "the events grid", "who's in which shot" | `storypad.py show <story> --view events`; drawn with scene columns → say shot columns come with a scene or a range |
+| "Zoom in on 3", "show scenes 4 to 6", "pan right" | `show <story> <scene or from-to> --view <the view last shown, else threads>` |
+| "Where does the spare fuse go", "follow Luis" | `storypad.py detail <story> --thread <name>` |
+| Something carries ("the fuse gets used up at 4c, off screen") | `thread add` when the thread is new, then `event add <story> <thread> <event> --at <ref> [--kind] [--seen]`; name it back ("Spare fuse: used up, unseen, at 4c Codes cleared") and show the list form it prints |
+| A cause ("that's why Dana asks for a spare") | `event link <story> "<thread>: <event>" "<thread>: <event>" --effect <word>`; name both events back and show the list form |
+| "List what's missing", "what assets do we need" | `storypad.py show <story> --view assets` |
+| "Where are we shooting", "what sets do we need" | `storypad.py show <story> --view locations` |
+| "What uses the demo app", "which shots are in the ditch" | `storypad.py detail <story> @<name>` |
+| A new need ("we'll need a spare fuse prop") | ask what it must be, then `asset add <story> <name> --expect <it>`, add the prep line with its `@name`, `sync` |
+| A place changed from some point on ("the ditch looks different once the panel's open") | ask what differs; no moment for that point yet → `moment add <world> <name> --story <story> --at <shot>` first; then `location add <story> <name> --of <location> --from <moment> --expect <it> --look <what differs>` |
+| "The set is built", "we've cast Luis", "here's the capture" | `asset\|location set <story> <name> --state made [--file <file>]`; show the boxes it says the owner can tick |
+| "That's right", "approved", naming a record | `asset\|location set <story> <name> --state approved` |
+| "Use the capture for 2a from 0:04" | `storypad.py take add <story> 2a --file @<name> --in 4` |
 | Compile the script | `storypad.py compile <story>`; name the scenes still without script |
-| List stories | `storypad.py list` |
-| Open a story | Read its `index.md`, and `series.md` for an episode, then `show` it |
+| List stories | `storypad.py list`: each world with its stories |
+| Open a story | Read its `index.md` and its world's `world.md`, and `series.md` for an episode, then `show` it |
 
 Work on the story the ask names. None named: the story named last in the conversation; none named
 yet → the only story; more than one → ask which.

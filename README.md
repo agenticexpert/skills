@@ -1,7 +1,7 @@
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Skills](https://img.shields.io/badge/skills-7-brightgreen.svg)
+![Skills](https://img.shields.io/badge/skills-8-brightgreen.svg)
 
 </div>
 
@@ -22,6 +22,7 @@ Here's how.
 | The session ends and everything it knew dies with it | **[Mem](skills/mem/README.md)** — durable summaries that survive `/clear`, compaction, and handoffs |
 | You send out resumes and hear nothing back, and no one tells you why | **[Resume](skills/resume/README.md)** — finds the few places a hiring reader stops, and what would change the call |
 | A video lives in scattered notes and you lose track of the scenes, their order and what's left | **[Storypad](skills/storypad/README.md)** — a board for the story: scenes, scripts, shots and continuity, up to a rough cut |
+| A render looks fine to you, but you have watched it a hundred times | **[LCA](skills/lca/README.md)** — fresh reviewer agents go through it frame by frame and rank every glitch, AI artifact and continuity error |
 
 ## What it looks like
 
@@ -35,7 +36,7 @@ device fingerprinting      DROP    40 lines, one caller, breaks Safari private m
 Pivot only if SSO lands next quarter. Otherwise this holds.
 ```
 
-Every call conditional, every call tied to something in your code. That's the house style across all seven.
+Every call conditional, every call tied to something in your code. That's the house style across all eight.
 
 ## How to use it
 
@@ -48,13 +49,14 @@ Every call conditional, every call tied to something in your code. That's the ho
 - "Checkpoint this session." · "Continue from the last checkpoint."
 - "Review my resume for this role and tell me what could stop the call."
 - "Outline a video about `<topic>`." · "What's left on this story?"
+- "Review this render for glitches." · "Check this clip for AI artifacts."
 
-Need to force one? Every skill loads by name: `/tasky` `/keeper` `/lookback` `/ripper` `/mem` `/resume` `/storypad`.
+Need to force one? Every skill loads by name: `/tasky` `/keeper` `/lookback` `/ripper` `/mem` `/resume` `/storypad` `/lca`.
 
 ## Install
 
 ```bash
-# All seven
+# All eight
 npx skills add agenticexpert/skills
 
 # Or just one
@@ -65,6 +67,7 @@ npx skills add agenticexpert/skills/ripper
 npx skills add agenticexpert/skills/mem
 npx skills add agenticexpert/skills/resume
 npx skills add agenticexpert/skills/storypad
+npx skills add agenticexpert/skills/lca
 ```
 
 Updating:
@@ -74,19 +77,19 @@ npx skills update agenticexpert/skills   # everything from this source
 npx skills update tasky                  # one skill by name
 ```
 
-**Start here:** install all seven, then say *"Let's plan out the roadmap for `<what you're building>`."* Tasky picks it up. The rest find you when you need them.
+**Start here:** install all eight, then say *"Let's plan out the roadmap for `<what you're building>`."* Tasky picks it up. The rest find you when you need them.
 
 ---
 
 ## Going deeper
 
-The seven group into five jobs. Each skill's own README has the full method.
+The eight group into five jobs. Each skill's own README has the full method.
 
 - **Plan & execute** — [Tasky](skills/tasky/README.md) breaks the work down into a plan you can run and track.
 - **Stress-test a decision** — [Keeper](skills/keeper/README.md) judges what exists · [Lookback](skills/lookback/README.md) hunts the failure before it happens · [Ripper](skills/ripper/README.md) hunts the quiet churn.
 - **Context** — [Mem](skills/mem/README.md) keeps what the model would otherwise forget.
 - **Get the call** — [Resume](skills/resume/README.md) reads your resume as the five people who actually decide, and repairs only what changes their answer.
-- **Tell a story** — [Storypad](skills/storypad/README.md) keeps a video's scenes, scripts and shots in plain markdown and shows what's left, up to a rough cut.
+- **Tell a story** — [Storypad](skills/storypad/README.md) keeps a video's scenes, scripts and shots in plain markdown and shows what's left, up to a rough cut · [LCA](skills/lca/README.md) gives a finished film fresh eyes and lists every glitch a viewer would catch.
 
 They compose: Tasky plans it, Lookback tries to break it, Keeper decides what survives, Mem remembers what happened.
 

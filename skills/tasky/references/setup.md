@@ -71,7 +71,7 @@ Tasky's `SKILL.md` only loads when `/tasky` is invoked, and the compactor is not
 <!-- tasky:compact-instructions:start -->
 ## Compact Instructions
 
-Route every action on the data root (`{root}/`) through a `references/*.md` playbook under `{skills}/`. "Create a task" / "track this as work" → `structure.md`, even mid-flow on another task. Before the first action that changes a file or produces a deliverable, or on an ask reporting work finished or ticking a criterion, run the Tracked-Work Check in `navigate.md`. On a match, route through `execute.md`. Never create a task; that is `structure.md`. Two or more equal matches → ask which. When a task completes, the hand-back takes the form in `references/report.md`: `STATUS:` first, facts only, a `DECIDE:` line only when the user must decide something.
+Route every action on the data root (`{root}/`) through a `references/*.md` playbook under `{skills}/`. "Create a task" / "track this as work" → `structure.md`, even mid-flow on another task. Before the first action that changes a file or produces a deliverable, or on an ask reporting work finished or ticking a criterion, run the Tracked-Work Check in `navigate.md`. On a match, route through `execute.md`. Never create a task; that is `structure.md`. Two or more equal matches → ask which. When a task completes, the hand-back takes the form in `references/report.md`: `STATUS:` first, every line something that matters to the user, a `DECIDE:` line only for a choice **Deciding** in `SKILL.md` lets surface.
 <!-- tasky:compact-instructions:end -->
 ```
 

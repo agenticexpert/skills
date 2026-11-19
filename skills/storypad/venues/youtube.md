@@ -120,17 +120,7 @@ tags: []
 
 | Ep  | Title | Folder | Status | Arc Position | Premise |
 |-----|-------|--------|--------|--------------|---------|
-
-## Continuity Threads
-
-| Thread | Status | Introduced | Last Referenced | Episodes |
-|--------|--------|------------|-----------------|----------|
-
-## Recurring Elements
-
-| Element | Type | Description |
-|---------|------|-------------|
 ```
 
-Recurring element types: `catchphrase`, `segment`, `character`, `visual`. End each episode on an
-open question or tease, keep it as an `active` thread, and pick it up in the next episode's hook.
+End each episode on an open question or tease, keep it as an `active` thread of the world
+(`thread add <series> <name> --episodes N`), and pick it up in the next episode's hook.

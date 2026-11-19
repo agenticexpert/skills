@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 # Stop: holds tasky replies to references/report.md.
 # A reply after a task-ending set-status goes to a fresh reviewer, which cuts every line
-# the user would not see the point of. Any other reply is checked for the form and for
-# machine vocabulary, which is out of bounds in any user-facing reply.
+# the user would not see the point of. Any other reply is checked for machine vocabulary,
+# which is out of bounds in any user-facing reply. Only a hand-back of tracked-task work is
+# held to the report form and to an exact next step; a chat answer is sent back for plain
+# words in its own shape.
 #
 # Inert unless a tasky.md is in force. Never fires on a term the user used first, so
 # answering a question about `manage_tasks.py` stays legal. Fenced code is exempt.
@@ -14,6 +16,8 @@ import pathlib
 import re
 import sys
 
+DATA_ROOT = '.agents/tasky/'
+
 FORBIDDEN = [
     (r'\bset-status\b', 'the set-status command'),
     (r'\b(?:manage|view)_\w+\.py\b', 'a tasky script filename'),
@@ -21,7 +25,7 @@ FORBIDDEN = [
     (r'\bcriteri(?:on|a)\s+\d', 'a criterion number'),
     (r'^\s*STATUS:\s*(?:COMPLETE|BLOCKED|DOING|READY|DONE|PAUSED|PENDING)\s*$', 'a raw status line'),
     (r'\b\d{2}-[a-z0-9]+(?:-[a-z0-9]+)+\b(?!\.md)', 'a directory slug'),
-    (r'\.agents/tasky/', 'an internal path'),
+    (re.escape(DATA_ROOT), 'an internal path'),
     (r'\b(?:READY|DOING(?! NOW:)|PAUSED)\b', 'a raw task status'),
     (r'\bcriteria (?:met|checked|verified)\b|\d+\s*/\s*\d+ criteria', 'a criteria tally'),
     (r'\bgates? (?:all )?(?:green|0|clean)\b', 'gate mechanics'),
@@ -44,11 +48,34 @@ def ending_command(block):
     return command if TASK_END.search(command) else ''
 
 
+# A tasky script subcommand that changes tasks (list and show only read), or a shell write under
+# the data root: the turn worked on tracked tasks.
+TASKY_WRITE = re.compile(
+    r'''\bmanage_\w+\.py["']?\s+(?!list\b|show\b|-)\w'''
+    r'|(?:\bsed\s+-i|\b(?:mv|rm|cp|tee|touch|mkdir|ln)\s|>>?\s*)[^|;&\n]*' + re.escape(DATA_ROOT)
+)
+WRITE_TOOLS = {'Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'mcp__lean-ctx__ctx_edit', 'mcp__lean-ctx__ctx_patch'}
+SHELL_TOOLS = {'Bash', 'mcp__lean-ctx__ctx_shell'}
+# The turn answers an agent's finished run, not a message the user typed or a background command's end.
+AGENT_MESSAGE = r'\s*(?:<task-notification>.*?<summary>Agent |Another Claude session sent a message:)'
+
+
+def changes_tasks(block):
+    if not isinstance(block, dict) or block.get('type') != 'tool_use':
+        return False
+    name, args = block.get('name', ''), block.get('input', {}) or {}
+    if name in SHELL_TOOLS:
+        return bool(TASKY_WRITE.search(str(args.get('command', ''))))
+    if name in WRITE_TOOLS:
+        return DATA_ROOT in str(args.get('file_path') or args.get('path') or '')
+    return False
+
+
 def tasky_config():
     # The tasky.md in force, or None.
     root = pathlib.Path(os.environ.get('CLAUDE_PROJECT_DIR', '.')).resolve()
     for parent in [root, *root.parents]:
-        for name in ('tasky.md', '.agents/tasky/tasky.md'):
+        for name in ('tasky.md', DATA_ROOT + 'tasky.md'):
             if (parent / name).is_file():
                 return parent / name
     return None
@@ -58,12 +85,20 @@ def tasky_in_force():
     return tasky_config() is not None
 
 
+# This hook's own send-back, as the transcript records it. Hook feedback and agent hand-backs
+# are meta entries, so a turn runs from the user's last real message across all of them.
+SENT_BACK = re.compile(r'Stop hook feedback:\s*(REPORT REVIEW|REPORT FORM VIOLATION)\b')
+MAX_SEND_BACKS = 2  # after two send-backs in a turn, the reply reaches the user
+
+
 def transcript_tail(path):
-    # Returns (newest assistant reply, newest user message, whether this turn ended a task).
+    # Returns (newest assistant reply, newest user message, the command that ended a task this
+    # turn, whether this turn changed tasks, this hook's send-backs this turn, whether a review
+    # was asked for after the task ended).
     try:
         lines = open(path, encoding='utf-8').read().splitlines()
     except OSError:
-        return '', '', ''
+        return '', '', '', False, 0, False
 
     def text_of(entry):
         blocks = entry.get('message', {}).get('content', [])
@@ -76,6 +111,8 @@ def transcript_tail(path):
 
     reply = prompt = ''
     ended = ''
+    worked = reviewed = False
+    sent = 0
     for line in reversed(lines):
         try:
             entry = json.loads(line)
@@ -90,24 +127,33 @@ def transcript_tail(path):
             blocks = entry.get('message', {}).get('content', [])
             if isinstance(blocks, list):
                 ended = next((c for c in map(ending_command, blocks) if c), ended)
+                worked = worked or any(map(changes_tasks, blocks))
+        elif kind == 'user' and entry.get('isMeta'):
+            back = SENT_BACK.match(text_of(entry))
+            if back:
+                sent += 1
+                # Walking back, no ending command seen yet: this review came after the task ended.
+                reviewed = reviewed or (back.group(1) == 'REPORT REVIEW' and not ended)
         elif kind == 'user':
             text = text_of(entry)
             if text.strip():
                 prompt = text
                 break
-    return reply, prompt, ended
+    return reply, prompt, ended, worked, sent, reviewed
 
 
 def strip_code(text):
     return re.sub(r'^```.*?^```', '', text, flags=re.M | re.S)
 
 
-MAX_STATUS_WORDS = 22    # backstops for "one sentence"; the playbook never counts
-MAX_BULLET_WORDS = 22
-MAX_DECIDE_WORDS = 45
+def strip_links(text):
+    # A link's target is an address the user follows, not vocabulary: a slug in a URL is the page's name.
+    text = re.sub(r'\[([^\]]*)\]\([^)\s]*\)', r'\1', text)
+    return re.sub(r'<?\b(?:https?|ftp)://[^\s>)\]]+>?', '', text)
 
 
-# Inside a hand-back, a line about the work itself is a note to whoever builds next.
+# Inside a hand-back, a line about the work itself has no consequence for the user: it is a
+# note to whoever builds next. This is the one line-content check.
 WORK_LOG = re.compile(
     r"\bI(?:'ve| have)? (?:ran|run|confirmed|verified|checked|tested|re-ran|proved|"
     r"fixed|wrote|added|updated|recorded|traced)\b"
@@ -115,14 +161,35 @@ WORK_LOG = re.compile(
     re.I,
 )
 
+# Inside a hand-back, a prompt to commit or push, or a pointer at other tasks waiting, stands
+# where the one exact next step belongs. Commit and push happen when the user asks.
+GIT = r'(?:commit(?:ted|s)?|push(?:ed|es)?)'
+COUNT = r'(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|several|a few|other|more|(?:the )?remaining)'
+# Each: the pattern, its name, and the user's own topic that makes it an answer, not a nag.
+NEXT_STEP = [
+    (re.compile(
+        rf'\bsay\b[^.\n]{{0,60}}\b(?:to|and I(?:\'ll| will))\s+{GIT}\b|\bsay\s+["“]?{GIT}\b|["“]{GIT}["”]'
+        rf'|\b(?:want me to|shall I|should I|ready to|let me know)\b[^.\n?]{{0,40}}\b{GIT}\b'
+        rf'|\b{GIT}\b[^.\n]{{0,40}}\b(?:when|until|once) you (?:say|ask|want|tell|are)', re.I),
+     'a prompt to commit or push', re.compile(rf'\b{GIT}\b', re.I)),
+    (re.compile(
+        rf'(?:^|[.:]\s+|^\s*-\s+(?:\w+:\s+)?)(?:the\s+)?{COUNT}\s+(?:\w+\s+)?tasks?\b[^.\n]{{0,40}}'
+        r'\b(?:waiting|remain|left|to go|queued)\b|\b(?:more|others) (?:remain|are waiting)\b', re.I | re.M),
+     'a pointer at other tasks waiting', re.compile(r'\b(?:left|remains?|remaining|waiting|how many)\b', re.I)),
+    (re.compile(
+        r'\b(?:reply|say|tell me)\b[^.\n]{0,15}\b(?:done|close[sd]?|complete)\b'
+        r'|\bclos(?:e|ing)\b[^.\n]{0,40}\btasks?\b'
+        r'|\b(?:mark(?:s|ing)?|confirm|sign off)\b[^.\n]{0,40}\b(?:done|complete)\b', re.I),
+     'a prompt to close or mark a task done', re.compile(r'\b(?:clos(?:e|ing)|mark)\b', re.I)),
+]
 
-# Describing and justifying — the connective tissue of a ramble. ", but" stays: it marks a
-# result as partial or unfinished, which a report must keep.
-CONNECTIVE = re.compile(
-    r",\s*(?:so|which|since|because)\b|\b(?:because|which means|so that|even though|"
-    r"although|whereas|rather than)\b|;\s",
-    re.I,
-)
+
+def next_step_violation(body, prompt):
+    for pattern, name, asked in NEXT_STEP:
+        match = pattern.search(body)
+        if match and not asked.search(prompt):
+            return name, match.group(0).strip()
+    return None
 
 
 def form_violation(body):
@@ -149,40 +216,39 @@ def form_violation(body):
                 return 'THEN: with nothing running — head the steps NEXT:', stripped[:60]
             if head.group(1) == 'TEST IT' and section == 'THEN':
                 return "the user's step under THEN: — it shows once the running work ends", stripped[:60]
-            fact, label = stripped[head.end():].strip(), head.group(1)
-            section = label
+            fact = stripped[head.end():].strip()
+            section = head.group(1)
         elif stripped.startswith('- '):
             if section == 'THEN' and stripped.startswith('- You:'):
                 return "the user's step under THEN: — it shows once the running work ends", stripped[:60]
-            fact, label = stripped[2:], 'DECIDE' if section == 'DECIDE' else 'bullet'
+            fact = stripped[2:]
         elif re.match(r'\d+\. ', stripped):
-            fact, label = stripped.split(' ', 1)[1], 'bullet'
+            fact = stripped.split(' ', 1)[1]
         elif re.match(r'[A-Z][A-Z ]{2,}:', stripped):
             return 'a section the form does not have', stripped[:60]
         else:
-            return 'prose outside the form — facts go in bullets', stripped[:60]
+            return 'a line outside the form — each point goes in a bullet', stripped[:60]
 
         log = WORK_LOG.search(fact)
         if log and not re.search(r'\b(?:should|will|expect)\b', fact, re.I):
-            return 'an account of the work, written for the next builder', log.group(0)
-        if label != 'DECIDE' and CONNECTIVE.search(fact):
-            return 'describing or justifying — reduce it to the fact', fact[:60]
-        cap = {'STATUS': MAX_STATUS_WORDS, 'DECIDE': MAX_DECIDE_WORDS}.get(label, MAX_BULLET_WORDS)
-        if len(fact.split()) > cap:
-            return f'a {len(fact.split())}-word line — one sentence per line, a second fact as its own bullet', fact[:60]
-    if not doing and not re.search(r'^\s*(?:- You:|DECIDE:)', body, re.M):
-        return ('no word on what moves it on — DOING NOW: with who runs it, or a "- You:" step '
-                'for what the user does next'), body[match.start():].splitlines()[0][:60]
+            return 'a line about the work with no consequence for the user', log.group(0)
+    if not doing and not re.search(r'^\s*(?:NEXT:|DECIDE:)', body, re.M):
+        return ('no word on what moves it on — DOING NOW: with who runs it, or NEXT: naming the '
+                'next task'), body[match.start():].splitlines()[0][:60]
     return None
 
 
-def violation(reply, prompt, ended=False):
+def violation(reply, prompt, ended=False, handback=False):
     body = strip_code(reply)
     if ended and body.strip() and not re.search(r'^STATUS:', body, re.M):
         return 'a task hand-back with no STATUS: line', body.strip().splitlines()[0][:60]
+    found = handback and next_step_violation(body, prompt)
+    if found:
+        return found
     found = form_violation(body)
     if found:
         return found
+    body = strip_links(body)
     for pattern, name in FORBIDDEN:
         match = re.search(pattern, body, re.M)
         if not match:
@@ -199,18 +265,21 @@ REVIEWER = """\
 You review a task report before its reader sees it. Output only the final report.
 
 The reader is the user: one person at a terminal who saw none of the work and knows
-only this task's goal. Test every line of the draft: would the user, knowing only
-this task's goal and their own last message, see at once why the line is there?
-No -> cut it. A line fails when it is about anything the goal and the message do
-not ask about, a reason, a comparison, how something works inside, what was run or
-checked, what does not exist yet, another task's work, or a warning about later
-work. Keep a warning only when the user must change course now. A NEXT line is an
-action toward this task's goal; a note folded into it fails like any other line.
+only this task's goal. Test every line of the draft: does it say something that
+matters to the user, knowing only this task's goal and their own last message? A
+line with no consequence for them is cut: what was run or checked, how something
+works inside, another task's work, a warning that changes nothing they do now. A
+reason stays when it tells the user what the result means for them. The NEXT line
+names the one exact next step: the next task by its plain name and what doing it
+will produce; it stays, even when it names another task. A prompt to commit or push,
+or to close or mark a task done, is cut wherever it sits: the user does those when
+they choose. A count of tasks left, or other tasks waiting, is cut too.
 
-Cut; never add a fact. Reword a kept line only to drop a failing clause, or to put
-it in words the user would use instead of the builder's. Never drop the words that
-say a result is wrong, partial or unfinished; without them the fact is false. A line
-that tells the user how to see the work moves into TEST IT. Keep the shape:
+Cut; never add a fact. Reword a kept line only to drop a part with no consequence
+for the user, or to put it in words the user would use instead of the builder's.
+Never drop the words that say a result is wrong, partial or unfinished; without them
+the fact is false. A line that tells the user how to see the work moves into TEST IT.
+Keep the shape:
 
 STATUS: <where this task stands, one short sentence>
 
@@ -235,10 +304,9 @@ NEXT:  (THEN: when DOING NOW is shown)
 DECIDE: <the choice, in terms of what the user would notice>
   - <option>: <what it changes for them>
   - <option>: <what it changes for them>
-  - my pick: <option> — <what only you know that could change it>
 
-STATUS stays first. Each line holds one sentence of at most {cap} words; a second fact is its
-own bullet. Drop a section left empty. Every step line starts with who acts, the user's
+STATUS stays first and says what the result means for the user, in plain words. A second
+point is its own bullet. Drop a section left empty. Every step line starts with who acts, the user's
 steps first: "You:" the user; "Me:" this chat; "Agent:" an agent this chat started;
 "Pi:" a pi run; "GPT:" a Codex run; "BG:" a command running in the background;
 anyone or anything else, by a short name for it ("CI:", a person's name). DOING
@@ -247,16 +315,23 @@ meanwhile. With DOING NOW shown, THEN names what comes after it: the next step a
 who takes it, or the next task; never a step of the user's, which shows once the
 running work ends. With nothing running, the steps go under NEXT. Either holds only
 steps no one has started. Every report shows what moves the work on: DOING NOW
-with who runs it, or a You: step or DECIDE for what the user does next; a draft
-with neither gets a You: line for the step it names as next, the one line you may
+with who runs it, NEXT naming the next task and what it produces, or DECIDE; a
+draft with none gets a NEXT line for the next task it names, the one line you may
 add. WAITING ON lists only what is
 outside the session and holds a later step: an outside run, another person. The
 user's answer is a DECIDE. When the next step is the user trying the work, NEXT holds
 a TEST IT: block: numbered actions, then what they see.
 
-DECIDE stays only when the task cannot finish without the user's answer, and only in
-that shape, built from facts the draft gives. A choice that does not block the task,
-or that the draft names only in code terms, is cut.
+DECIDE stays only in that shape, built from facts the draft gives, and only when the
+work needs a fact only the user holds, every course open contradicts the user's goal
+or an earlier decision, or the choice sets a direction costly to undo (an
+architecture's shape, a program's structure) with more than one sound course left
+after the builder tried the work. A choice easy to undo, closing a task, or a choice
+the draft names only in code terms, is cut. A DECIDE, or a "reply X" or "say X to
+start" line, offering an option the draft recommends, or a question the user already
+settled, becomes that option as the NEXT "Me:" step. A line telling a choice the
+builder made, or the options it weighed, is cut unless the choice could contradict
+the user's goal or an earlier decision, or cause a problem they would hit.
 
 == TASK FILE ==
 {task}
@@ -276,7 +351,7 @@ def task_file(command):
         return '(not found)'
     milestone, slug = args[3], args[4]
     config = tasky_config()
-    roots = [config.parent, config.parent / '.agents' / 'tasky'] if config else []
+    roots = [config.parent, config.parent / DATA_ROOT] if config else []
     for root in roots:
         for path in root.glob(f'**/{milestone}/{slug}.md'):
             return path.read_text(encoding='utf-8')[:6000]
@@ -285,8 +360,7 @@ def task_file(command):
 
 def review_brief(reply, prompt, command):
     # The reviewer's whole brief, handed over in the open: the agent's prompt is the brief itself.
-    return REVIEWER.format(task=task_file(command), prompt=prompt.strip()[:3000], reply=reply.strip(),
-                           cap=MAX_BULLET_WORDS)
+    return REVIEWER.format(task=task_file(command), prompt=prompt.strip()[:3000], reply=reply.strip())
 
 
 def main():
@@ -301,11 +375,13 @@ def main():
     if payload.get('stop_hook_active'):
         return
 
-    reply, prompt, ended = transcript_tail(payload.get('transcript_path', ''))
+    reply, prompt, ended, worked, sent, reviewed = transcript_tail(payload.get('transcript_path', ''))
     reply = payload.get('last_assistant_message') or reply
+    if sent >= MAX_SEND_BACKS:
+        return
 
-    # A hand-back goes to a fresh reviewer before the user reads it.
-    if ended and reply.strip():
+    # A hand-back goes to a fresh reviewer before the user reads it, once: the reviewed report goes on.
+    if ended and reply.strip() and not reviewed:
         brief = review_brief(reply, prompt, ended)
         print(json.dumps({
             'decision': 'block',
@@ -318,18 +394,33 @@ def main():
         }))
         return
 
-    found = violation(reply, prompt, ended)
+    # The report form is for handing back tracked-task work: this turn's or a finished agent's.
+    # A chat answer keeps its own shape.
+    handback = bool(worked or re.match(AGENT_MESSAGE, prompt, re.S))
+    found = violation(reply, prompt, ended, handback)
     if not found:
         return
 
     name, snippet = found
+    if handback or re.search(r'^STATUS:', strip_code(reply), re.M):
+        rewrite = (
+            'Rewrite it for them: STATUS: first, saying what the result '
+            'means for them, then "- " bullets, DOING NOW:, WAITING ON: and NEXT: (THEN: after DOING NOW, never a step of theirs) only if they have content, DECIDE: only '
+            'for a choice tasky\'s SKILL.md Deciding lets surface; an option you would recommend is a '
+            'step you take, never a choice, and a choice you made goes unsaid unless Deciding 5 keeps it. '
+            'Cut a line with no consequence for them. Never '
+            'ask to commit, push, close or mark a task done (they do those when they choose) or point at '
+            'other tasks waiting or how many are left; name the one exact next step: which task, by its '
+            'plain name, and what doing it will produce.'
+        )
+    else:
+        rewrite = ('Say that part in the words the user would use, and give the whole answer again '
+                   'in its own shape, every fact kept.')
     print(json.dumps({
         'decision': 'block',
         'reason': (
             f'REPORT FORM VIOLATION: the reply shows {name} ("{snippet}") to a reader '
-            'who saw none of the work. Rewrite it for them: reduce it to facts: STATUS: '
-            'first, then "- fact" bullets, DOING NOW:, WAITING ON: and NEXT: (THEN: after DOING NOW, never a step of theirs) only if they have content, DECIDE: only '
-            'for a question only they can answer. No describing or justifying. Say nothing about this rewrite.'
+            f'who saw none of the work. {rewrite} Say nothing about this rewrite.'
         ),
     }))
 

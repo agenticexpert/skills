@@ -15,7 +15,7 @@ RULE = re.compile(r'^\s*\|[\s:|-]+\|\s*$')
 FM = re.compile(r'\A---[ \t]*\n(.*?)^---[ \t]*$', re.DOTALL | re.MULTILINE)
 TOP = re.compile(r'\s*^#[ \t]+(.+?)[ \t]*$', re.MULTILINE)
 CHECK = re.compile(r'^\s*-\s*\[([ xX])\]\s*(.*)')
-FIXED = ('status', 'updated', 'removed', 'type', 'series')
+FIXED = ('status', 'updated', 'removed', 'type', 'series', 'when')
 
 
 class TimelineError(ValueError):
@@ -223,11 +223,21 @@ def replace_section(text, heading, body, before=None):
     if body is None:
         return pattern.sub('', text, count=1)
     if pattern.search(text):
-        return pattern.sub(lambda m: m.group(1) + '\n' + body + '\n\n', text, count=1)
+        return pattern.sub(lambda m: m.group(1) + '\n' + body + ('\n' if m.end() == len(text) else '\n\n'), text, count=1)
     anchor = before and re.search(rf'^## {re.escape(before)}[ \t]*$', text, re.MULTILINE)
     if anchor:
         return text[:anchor.start()] + f'## {heading}\n\n{body}\n\n' + text[anchor.start():]
     return text.rstrip() + f'\n\n## {heading}\n\n{body}\n'
+
+
+def put_sections(text, order, bodies):
+    """Set each section of `bodies`, a new one going above the first of the sections after it in `order` the
+    text holds."""
+    for i, heading in enumerate(order):
+        if heading in bodies:
+            text = replace_section(text, heading, bodies[heading], before=next(
+                (h for h in order[i + 1:] if re.search(rf'^## {h}[ \t]*$', text, re.MULTILINE)), None))
+    return text
 
 
 def listed(head, rows, odd, columns):

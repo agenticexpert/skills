@@ -14,9 +14,12 @@
    write into each scene's file, `scenes/<File>` from its row in the scene table, only what it
    lacks: beats for what the audience sees or hears, prep for what must exist before it can be
    made, and `## Script` holding the Scratchpad's words for that scene, else empty.
+   - Each prep item names its record as `@name`. A record fits → reuse it. None fits → ask the
+     owner what it must be, then `asset add` or `location add <story> <name> --expect <it>`.
+   - Place a beat that pays off each `active` thread where the story lands it.
 4. Run `storypad.py sync`, then `show <story> --view breakdown`.
-5. Reply with the chart, the ideas left out (they stay in Notes), and each prep item that blocks
-   making a scene.
+5. Reply with the chart, the ideas left out (they stay in Notes), each prep item that blocks
+   making a scene, and each active thread still without a pays off.
 
 ## Changing scenes
 
@@ -32,6 +35,10 @@
 - **Lay out the shots:** for each scene, `shot add` one shot per beat the audience sees that no
   shot of the scene shows yet, in beat order, with `--shows` saying what the beat shows. Give `--length` and `--ends` only where the
   ask, the script or the notes state them. Add no layers. Then `show <story>`.
+- **Threads on screen:** for each thread a shot's shows line names, `thread set <story> <thread> --on
+  <its shots>`; `--heard` where it is only heard. List those in the reply.
+- **Where a shot is set:** a scene's frontmatter `location: "@ditch"`; one shot set elsewhere takes
+  `shot set <id> --meta location=@<location>`. Name the location, never a variation: the world's moments pick it.
 - **What a shot shows:** `shot set <id> --shows "<subject, framing, camera move, action>"`, in the
   user's words when they give them.
 - **A transition:** `shot set <id> --ends` on the shot before it.

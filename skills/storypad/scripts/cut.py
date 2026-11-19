@@ -105,7 +105,7 @@ def shots_of(story, notes):
             continue
         for x in s['shots']:
             take = timeline.approved(s, x['id'])
-            file = timeline.local(story['path'], take['file']) if take else None
+            file = timeline.local(story['path'], timeline.resolve(story, take['file'])) if take else None
             if file and not file.exists():
                 raise TimelineError(f"{take['id']}: {take['file']} is missing")
             if take is None:
@@ -223,7 +223,7 @@ def render(story, output, w, h, cards, scene=None):
             path = text_card(text, w, h, cards / f'{laid}.png')
             notes.append(f"layer {run['name']}: no file, its text shown on a plain card (this ffmpeg has no drawtext)")
         else:
-            path = timeline.local(story['path'], run['file'])
+            path = timeline.local(story['path'], timeline.resolve(story, run['file']))
         if not path.exists():
             raise TimelineError(f"layer {run['name']}: {run['file']} is missing")
         if path.suffix.lower() in AUDIO:

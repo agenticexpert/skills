@@ -99,7 +99,7 @@ EXECUTE: references/brainstorm.md
 ## Always
 
 - Every later message in the session that reports work done, asks what's next or where things stand, or changes tracked work re-reads the tasks with the scripts before answering. Never answer from an earlier read of the tasks.
-- **Every reply that ends work on a task — finished, paused, or stopped — takes the form in `references/report.md`:** `STATUS:` first. Every line passes one test: would the user, knowing only this task's goal, see at once why it is there? No → cut it.
+- **Every reply that ends work on a task — finished, paused, or stopped — takes the form in `references/report.md`:** `STATUS:` first, saying what the result means for the user. A line with no consequence for the user is cut.
 - Every other tasky reply follows the same reader rule. Plain conversation and code stay untouched.
 - A view ask ("show the tasks", "list X", "show the milestone") → the reply is the script's output in a code block, exactly as printed, and nothing else. Never retype, rename, reorder, drop a column or add a note or summary. Any other reply never repeats script output.
 - Derive state from scripts. Never guess project structure.
@@ -114,7 +114,7 @@ EXECUTE: references/brainstorm.md
 - A playbook backgrounds into a sub-agent only when its whole input is already on disk and its output is a compact receipt. A playbook whose work phase questions the user by design (**Deciding**), writes tasky state, or ends in user sign-off (`validate.md`) stays in the main window. Today only `execute.md`'s work phase backgrounds; `plan.md`, `structure.md`, `navigate.md`, `branch.md`, `define.md`, `flow.md`, `brainstorm.md`, `setup.md`, `validate.md`, and the hand-back above stay inline. This applies to every playbook in `references/`, present and future.
 - Task status changes only through `manage_tasks.py set-status`, and a criterion is ticked only through `manage_tasks.py check` with its evidence, one criterion at a time. Never edit a `Status:` or `Session:` line, a checkbox, or `project.json` by hand.
 - Any criterion not met → the task goes to `paused`, never READY, and the unfinished part is listed as a fact bullet.
-- DONE comes only from READY, only on the user's word, and only for the task they named. "Done and next" marks the current task DONE and starts the next; it never finishes the next one. `set-status` refuses DONE from any other status, and READY or DONE with an open box; `--force` only when the user explicitly says to skip that.
+- DONE comes only from READY, only on the user's word, and only for the task they named. Never prompt for that word. "Done and next" marks the current task DONE and starts the next; it never finishes the next one. `set-status` refuses DONE from any other status, and READY or DONE with an open box; `--force` only when the user explicitly says to skip that.
 - A dispatch brief carries all of `execute.md → Dispatch Brief`, the receipt template quoted word for word.
 - Decisions follow **Deciding** below.
 
@@ -122,15 +122,19 @@ EXECUTE: references/brainstorm.md
 
 ## Deciding — Auto-Proceed Doctrine
 
-**1. DEFAULT — act.** When exactly one correct next action exists — deterministic from task status, dependencies, sequence order, or clear conversation context — take it. State the resolution in one line ("Treating 'the auth work' as the `auth` milestone; starting `login-form`.") and proceed. Do not ask.
+**1. DEFAULT — act.** When exactly one correct next action exists — deterministic from task status, dependencies, sequence order, or clear conversation context — take it. State the resolution in one line ("Treating 'the auth work' as the `auth` milestone; starting `login-form`.") and proceed. Do not ask. When a choice comes up inside the work: take the course you judge right from the code, the docs, the goal and what the user wants, then build, run and test it. A choice settles how to meet what the user, the goal, a spec, a task or the project's standards state, never what must be true; when something seems required that none of them states, name it in one line, what is missing and what it would change, and leave it out.
 
-**2. SURFACE — only two triggers.** Pause and involve the user only when:
-(a) **BLOCKER** — a required input that is genuinely un-inferable *and* un-defaultable (no milestone context exists anywhere and none can be derived), or a declared dependency that is not DONE and cannot itself be started; or
-(b) **NEGATIVE RIPPLE** — proceeding would break, regress, or discard something else of value.
+**2. SURFACE — only three triggers.** Pause and involve the user only when:
+(a) **BLOCKER** — the work needs a fact only the user holds: a required input that is genuinely un-inferable *and* un-defaultable (no milestone context exists anywhere and none can be derived), or a declared dependency that is not DONE and cannot itself be started; or
+(b) **NEGATIVE RIPPLE** — every course open would break, regress, or discard something else of value, or contradict the user's known goal or an earlier decision; or
+(c) **LASTING DIRECTION** — the choice sets a direction costly to undo, such as an architecture's shape or a program's structure, and the attempt in 1 and the evidence still leave more than one sound course. Surface it before building on it, with each course and its cost, and suggest `/council` when it would settle it.
+A choice easy to undo or plainly right is made, never surfaced.
 
-**3. VOICE.** When surfacing, write to a human who does not know the internals: concise, terse, plain language. No skill or spec vocabulary, no wall of text, no machine-speak. Say what is wrong and what the choice is, in a sentence or two. Surface only if it is critical; if not, proceed and report. One decision per surface, never a stack.
+**3. VOICE.** When surfacing, write to a human who does not know the internals: concise, terse, plain language. No skill or spec vocabulary, no wall of text, no machine-speak. Say what is wrong and what the choice is, in a sentence or two. One decision per surface, never a stack.
 
-**4. NO FALSE MENUS.** Never present [the right answer] + [inferior options] as a choice. Genuine ambiguity — two or more equally-valid referents — is the only thing that may be disambiguated, and even then, resolve by best match and state the assumption wherever one referent is clearly more likely.
+**4. NO FALSE MENUS.** An option you would recommend is never put to the user as a choice: take it. A question the conversation already settled is never asked again. A DECIDE line, menu, "want me to…?" or "say X to start" outside the triggers in 2 is a failure. Two or more equally-valid referents: resolve by best match and state the assumption wherever one is clearly more likely; otherwise ask which.
+
+**5. SILENT CHOICES.** A hand-back reports the result as done, without a choice made or the options weighed. A choice gets one line only when it could contradict the user's known goal or an earlier decision, or cause a problem they would hit: what could happen and what to do.
 
 **Scope.** This governs *choices about what to do next*, and the *content of any hand-back to the user* — plain and actionable, no machine-register (`references/report.md`). It does not govern *questions about what the user wants built*. Playbooks whose job is to draw out material that does not exist yet — `setup.md`, `brainstorm.md`, `plan.md`, and `define.md`'s question sets — ask by design.
 

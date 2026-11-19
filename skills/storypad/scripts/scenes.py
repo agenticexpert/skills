@@ -8,10 +8,13 @@ import shutil
 import textwrap
 from pathlib import Path
 
+import assets
+import storyfile
 import timeline
-from continuity import series_pins
+from continuity import (detail_thread, follow, moment_problems, shot_lines, show_view, story_threads, strand, stranded,
+    thread_problems, thread_tasks)
 from storyfile import (FIXED, TimelineError, cell, checks, dated, frontmatter, listed, listing, listing_problems,
-    meta_pairs, named, put_frontmatter, replace_section, same, save, sections, slug, top, unique)
+    meta_pairs, named, put_frontmatter, put_sections, replace_section, same, save, sections, slug, top, unique)
 from venues import closing_scene, first_scenes
 
 OLD_SCENE = re.compile(r'^(\d+) - (.+)\.md$')
@@ -64,11 +67,12 @@ def scene_status(scene):
 
 
 def scene_tasks(scene):
-    """The scene's own open tasks: each open beat and prep item, its script, an unreadable timeline."""
-    out = [b['text'] for b in scene['beats'] if not b['done']]
-    out += [f"prep: {p['text']}" for p in scene['prep'] if not p['done']]
-    out += [] if scene['script'] else ['script']
-    return out + ([f"fix its timeline, which can't be read: {scene['broken']}"] if scene['broken'] else [])
+    """The scene's own open tasks, as (their --only kind, the task): each open beat and prep item, its script,
+    an unreadable timeline."""
+    out = [('beats', b['text']) for b in scene['beats'] if not b['done']]
+    out += [('prep', f"prep: {p['text']}") for p in scene['prep'] if not p['done']]
+    out += [] if scene['script'] else [('script', 'script')]
+    return out + ([('shots', f"fix its timeline, which can't be read: {scene['broken']}")] if scene['broken'] else [])
 
 
 def closing(story):
@@ -93,10 +97,12 @@ def tally(story):
     or refining once refine has set it; open tasks never change it."""
     scenes, fm = story['scenes'], story['fm']
     done, total = done_total([i for s in scenes for i in s['beats'] + s['prep']])
-    pins = story['pins'] + story['series_pins']
+    pins = story['pins'] + story['world_pins']
     opened = {'scene': sum(len(scene_tasks(s)) for s in scenes),
               'shot': sum(len(timeline.shot_tasks(s, pins, scenes)) for s in scenes),
               'layer': sum(len(timeline.layer_tasks(s)) for s in scenes),
+              'thread': len(thread_tasks(story)) if 'events' in story else 0,
+              'record': len(assets.record_tasks(story) + assets.record_problems(story)),
               'cut': len(cut_tasks(story))}
     notes = ''.join(sections(story['text']).get('notes', [])).strip()
     if not scenes:
@@ -108,7 +114,8 @@ def tally(story):
 
 def open_counts(opened):
     """`2 on scenes, 1 on shots`: each place with tasks open; `nothing open` when none is."""
-    where = {'scene': 'scenes', 'shot': 'shots', 'layer': 'layers', 'cut': 'the cut'}
+    where = {'scene': 'scenes', 'shot': 'shots', 'layer': 'layers', 'thread': 'threads',
+             'record': 'assets and locations', 'cut': 'the cut'}
     return ', '.join(f'{n} on {where[k]}' for k, n in opened.items() if n) or 'nothing open'
 
 
@@ -120,9 +127,49 @@ def standing(story):
     return f"{story['status']} · " + (f"{n} open: {open_counts(story['open'])}" if n else 'nothing open')
 
 
-def read_story(path, series=None):
+def world_key(path, world):
+    """A story's or series' key in the world folder `world`: its folder path from there, as film or
+    saga/ep-first."""
+    return path.resolve().relative_to(world.resolve()).as_posix()
+
+
+def keeps_own(path, body):
+    """Refused while the story's index.md (`body`, its sections) or the series' series.md keeps its own assets,
+    locations, threads or events, or pins on shared things (a story's from a thread or record, any of a series'):
+    they belong in world.md."""
+    own = assets.parse_records(body)['records'] + assets.parse_recurring(body.get('recurring elements'))[1]
+    if own:
+        raise TimelineError(old(path, f"it keeps its own assets or locations, as {own[0]['name']}; they belong in "
+                                      "its world's world.md"))
+    held = [r for s in ('threads', 'continuity threads', 'events') for r in storyfile.table(body.get(s), ('Thread',))[1]
+            if r['thread']]
+    if held:
+        raise TimelineError(old(path, f"it keeps its own threads or events, as {held[0]['thread']}; they belong in "
+                                      "its world's world.md"))
+    series = (path / 'series.md').is_file()
+    shared = [r for r in storyfile.table(body.get('pins'), timeline.PINS)[1]
+              if r['pin'] and (series or timeline.shared_pin(r))]
+    if shared:
+        raise TimelineError(old(path, f"it keeps pins on shared things, as {shared[0]['pin']}; they belong in its "
+                                      "world's world.md"))
+
+
+def listed_scenes(path, body):
+    """The scenes of the story at `path` in the order of its Scenes table (`body`, its index.md's sections), with
+    the table's header, its rows naming nothing there or one listed above, and the files it doesn't list."""
+    folder = path / 'scenes'
+    files = {p.name for p in folder.glob('*.md') if not p.name.startswith('.')} if folder.is_dir() else set()
+    head, order, rows, odd, unlisted = listing(body.get('scenes'), SCENES, 'file', files)
+    scenes = [parse_scene(folder / f, (folder / f).read_text(encoding='utf-8'), n) for n, f in enumerate(order, 1)]
+    for s in scenes:
+        s['row'] = rows.get(s['file'], {})
+    return scenes, head, odd, unlisted
+
+
+def read_story(path, series=None, world=None):
     """A story, its scenes in the order of its Scenes table; `series` is its series' series.md, read,
-    when it is an episode."""
+    when it is an episode; `world` its world's world.md, read, whose records it uses. A story or series keeping
+    its own assets or locations is the older layout."""
     doc = path / 'index.md'
     if not doc.is_file():
         raise TimelineError(f'{path} is not a story: it has no index.md')
@@ -130,22 +177,23 @@ def read_story(path, series=None):
         raise TimelineError(old(path, old_story(path)))
     text = doc.read_text(encoding='utf-8')
     fm, body = frontmatter(text), sections(text)
-    folder = path / 'scenes'
-    files = {p.name for p in folder.glob('*.md') if not p.name.startswith('.')} if folder.is_dir() else set()
-    head, order, rows, odd, unlisted = listing(body.get('scenes'), SCENES, 'file', files)
-    scenes = [parse_scene(folder / f, (folder / f).read_text(encoding='utf-8'), n) for n, f in enumerate(order, 1)]
-    for s in scenes:
-        s['row'] = rows.get(s['file'], {})
+    scenes, head, odd, unlisted = listed_scenes(path, body)
     num = series['folders'].index(path.name) + 1 if series and path.name in series['folders'] else None
     h = top(text)
     story = {'path': path, 'text': text, 'fm': fm, 'doc': doc, 'scenes': scenes, 'head': head, 'odd': odd,
              'unlisted': unlisted, 'num': num, 'row': series['rows'].get(path.name, {}) if num else {},
              'title': h.group(1) if h else f'Episode {num}' if num else path.name,
-             'removed': fm.get('removed', '').split()}
+             'removed': fm.get('removed', '').split(), 'world': world, 'when': fm.get('when', ''),
+             'key': world_key(path, world['path']) if world else path.name}
+    keeps_own(path, body)
+    if num:
+        keeps_own(series['path'], sections(series['text']))
+    story.update(story_threads(story))
     story['pins_head'], story['pins'] = timeline.parse_pins(body.get('pins'), lambda t: timeline.pin_end(t, scenes))
-    story['series_pins'] = series_pins(series, num) if num else []
+    story['world_pins'] = timeline.world_pins(story)
+    assets.mark_uses(story)
     for s in scenes:
-        if not s['broken'] and timeline.fill_basis(s, story['pins'] + story['series_pins'], scenes):
+        if not s['broken'] and timeline.fill_basis(s, story['pins'] + story['world_pins'], scenes):
             s['dirty'] = True
             s['text'] = s['disk'] = scene_text(s)
             save(s['path'], s['text'])
@@ -246,10 +294,33 @@ def gantt(scenes):
 
 
 VIEWS = {'breakdown': breakdown, 'table': table, 'gantt': gantt}
+DRAWN = ('threads', 'small', 'events')
+RECORDS = {'assets': assets.show_assets, 'locations': assets.show_locations}
+ONLY = ('beats', 'prep', 'script', 'shots', 'layers', 'assets', 'locations', 'threads')
+
+
+def window():
+    return shutil.get_terminal_size((100, 24)).columns
 
 
 def width():
-    return shutil.get_terminal_size((100, 24)).columns - 6
+    return window() - 6
+
+
+def run_of(items, at, find):
+    """The numbered items `at` names through `find`: one, or a run `<from>-<to>`; a run ending before it starts
+    is refused."""
+    first, dash, last = at.partition('-')
+    a = find(first if dash else at)
+    b = find(last) if dash else a
+    if b['num'] < a['num']:
+        raise TimelineError(f"{at} runs backwards; give {b['num']}-{a['num']}")
+    return items[a['num'] - 1:b['num']]
+
+
+def picked(story, at):
+    """The scenes `at` names: one scene, or a run `<from>-<to>`."""
+    return run_of(story['scenes'], at, lambda ref: timeline.find_scene(story, ref))
 
 
 def writable(story):
@@ -267,27 +338,36 @@ def unreadable(story):
 
 
 def whole_pinned(story):
-    """Whether a pin of the story or of its series holds over the whole story."""
-    return any(p['from'] is None and not p['broken'] for p in story['pins'] + story['series_pins'])
+    """Whether a pin of the story or of its world holds over the whole story."""
+    return any(p['from'] is None and not p['broken'] for p in story['pins'] + story['world_pins'])
 
 
 def show_scene(story, s):
     scenes = story['scenes']
     if s['broken']:
         return f"  {s['num']}  {s['name']}\n  its timeline can't be read: {s['broken']}"
-    marked = timeline.pinned(story['pins'], scenes) | ({str(s['num'])} if whole_pinned(story) else set())
+    marked = timeline.pinned(story['pins'] + story['world_pins'], scenes) \
+        | ({str(s['num'])} if whole_pinned(story) else set())
     return '\n'.join(timeline.scene_strip(s, timeline.enters(scenes)[scenes.index(s)], width(), marked))
 
 
 def show_strip(story):
-    marked = timeline.pinned(story['pins'], story['scenes'])
+    marked = timeline.pinned(story['pins'] + story['world_pins'], story['scenes'])
     title = story['title'] + ('•' if whole_pinned(story) else '')
     return '\n'.join(timeline.story_strip(title, story['scenes'], width(), marked))
 
 
-def show_story(story, view):
+def show_story(story, view, at=None, only=None):
+    if view in RECORDS:
+        return RECORDS[view](story)
     if not story['scenes']:
         return '\n'.join(header(story) + ['  (no scenes yet)'])
+    if view in DRAWN:
+        pick = picked(story, at) if at else story['scenes']
+        zoom = pick[0] if at and '-' not in at else None
+        return show_view(story, 'threads' if zoom and view == 'small' else view, pick, zoom, only,
+                         window(), lambda s: done_total(s['beats'] + s['prep']),
+                         f"show {story['path']}")
     if view == 'strip':
         out = [show_strip(story), '', f'  {standing(story)}']
     else:
@@ -297,17 +377,43 @@ def show_story(story, view):
     return '\n'.join(out + ([''] + [f'  {line}' for line in bad] if bad else []))
 
 
-def todo(story, prefix=''):
-    """The open tasks of each scene, its shots and its layers, then the cut's, each `[ ]`; last, where
-    the story stands."""
-    out, pins = [], story['pins'] + story['series_pins']
-    for s in story['scenes']:
-        lines = [f'  [ ] {t}' for t in scene_tasks(s) + timeline.shot_tasks(s, pins, story['scenes'])
-                 + timeline.layer_tasks(s)]
+def ticks(tasks, only):
+    """Each (kind, task) as an open `[ ]` line; `only` keeps one kind."""
+    return [f'  [ ] {t}' for k, t in tasks if not only or k == only]
+
+
+def unshot(story):
+    """The shots with no take, by scene."""
+    rows = [(s, [x for x in s['shots'] if not any(t['shot'] == x['id'] for t in s['takes'])]) for s in story['scenes']]
+    rows = [(s, xs) for s, xs in rows if xs]
+    n = sum(len(xs) for _, xs in rows)
+    return [f"  {n} shot{'s' if n != 1 else ''} with no take"] + \
+        [f"  {s['num']:<3}" + ' · '.join(f"{x['id']} {x['name']}" for x in xs) for s, xs in rows]
+
+
+def todo(story, prefix='', scenes=None, only=None):
+    """The open tasks of each scene, its shots, its layers and its threads, then the threads', the assets'
+    and locations' and the cut's, each `[ ]`; last, where the story stands. Given `scenes`: their tasks and
+    the records each uses. `only` keeps one kind of task."""
+    out, pins, threads = [], story['pins'] + story['world_pins'], thread_tasks(story)
+    if only == 'shots' and not scenes:
+        tasks = [('shots', t.replace('no take yet, ', '')) for s in story['scenes']
+                 for t in timeline.shot_tasks(s, pins, story['scenes']) if not t.endswith(': no take yet')]
+        return [prefix + line for line in unshot(story)] + ticks(tasks, only)
+    for s in scenes or story['scenes']:
+        lines = ticks(scene_tasks(s) + [('shots', t) for t in timeline.shot_tasks(s, pins, story['scenes'])]
+                      + [('layers', t) for t in timeline.layer_tasks(s)]
+                      + [('threads', t) for n, t in threads if n == str(s['num'])]
+                      + (assets.record_tasks(story, s) if scenes else []), only)
         if lines:
             out += [f"{prefix}{s['num']} {s['name']}"] + lines
-    cut = cut_tasks(story)
-    out += [f'{prefix}the cut'] + [f'  [ ] {t}' for t in cut] if cut else []
+    if scenes:
+        return out
+    for head, tasks in (('Threads', [('threads', t) for n, t in threads if n is None]),
+                        ('Assets and locations', assets.record_tasks(story) + assets.record_problems(story)),
+                        ('the cut', [('cut', t) for t in cut_tasks(story)])):
+        lines = ticks(tasks, only)
+        out += [f'{prefix}{head}'] + lines if lines else []
     return out + [f'{prefix}{standing(story)}']
 
 
@@ -323,26 +429,30 @@ def offsets(story):
     return out
 
 
-def detail(story, ref, layer_name):
+def detail(story, ref, layer_name, thread=None):
     scenes = story['scenes']
+    if thread:
+        return detail_thread(story, thread)
     if layer_name:
         s = timeline.readable(timeline.find_scene(story, ref))
         layer = timeline.find_layer(s, layer_name)
         return '\n'.join([f"  {layer['name']}  ·  {s['num']} {s['name']}", f"  {timeline.layer_times(layer, s)}"]
                          + timeline.note_lines(layer['note'])
                          + timeline.meta_lines(timeline.meta(layer, timeline.LAYERS)))
-    pins = story['pins'] + story['series_pins']
+    pins = story['pins'] + story['world_pins']
     if not timeline.SHOT.match(ref.strip()):
         s = timeline.find_scene(story, ref)
         if s['broken']:
             return show_scene(story, s)
         return '\n'.join(timeline.detail_scene(s, offsets(story)[scenes.index(s)], pins, scenes))
     s, i = timeline.scene_of(story, ref)
-    return '\n'.join(timeline.detail_shot(s, i, offsets(story)[scenes.index(s)], pins, scenes))
+    return '\n'.join(timeline.detail_shot(s, i, offsets(story)[scenes.index(s)], pins, scenes)
+                     + shot_lines(story, s['shots'][i]['id']))
 
 
 def check(story):
-    found = unreadable(story) + cut_tasks(story)
+    found = unreadable(story) + cut_tasks(story) + thread_problems(story) + moment_problems(story) \
+        + [p for _, p in assets.record_problems(story)]
     if found:
         return '\n'.join(f'  {p}' for p in found)
     if not any(s['shots'] for s in story['scenes']):
@@ -362,7 +472,7 @@ def scene_text(scene):
 
 
 def index_text(story):
-    """index.md with the scene table, the pins, removed: and the status as the story now holds them."""
+    """index.md with the scene table, the pins, removed:, when: and the status as the story now holds them."""
     tally(story)
     rows = []
     for s in story['scenes']:
@@ -371,9 +481,11 @@ def index_text(story):
         rows.append({**s['row'], '#': str(s['num']), 'name': s['name'], 'file': s['file'], 'status': scene_status(s),
                      'beats': f'{bd}/{bt}', 'prep': f'{pd}/{pt}' if pt else '—'})
     text = replace_section(story['text'], 'Scenes', listed(story['head'], rows, story['odd'], SCENES))
-    text = replace_section(text, 'Pins', timeline.pins_table(story['pins_head'], story['pins']), before='Notes')
+    text = put_sections(text, ('Pins', 'Notes'), {'Pins': timeline.pins_table(story['pins_head'], story['pins'])})
     if story['removed'] or 'removed' in story['fm']:
         text = put_frontmatter(text, 'removed', ' '.join(story['removed']))
+    if story.get('when') or 'when' in story['fm']:
+        text = put_frontmatter(text, 'when', story['when'] or None)
     if 'status' in story['fm']:
         text = put_frontmatter(text, 'status', story['status'])
     return dated(story['text'], text)
@@ -418,6 +530,7 @@ def reorder(story, scenes):
     following. Returns the renaming."""
     was = [s['num'] for s in scenes]
     story['removed'], new = timeline.renumber(scenes, story['pins'], story['removed'])
+    follow(story, new)
     for s, n in zip(scenes, was):
         s['dirty'] = s['dirty'] or s['num'] != n
         s['name'] = s['title'] or f"Scene {s['num']}"
@@ -483,6 +596,12 @@ def scene_remove(story, ref, force):
     if users:
         raise TimelineError(f"{s['num']} {s['name']} is pinned by {', '.join(dict.fromkeys(users))}; "
                             'move or remove those pins first')
+    tags = {str(s['num']), s['name']} | ids
+    lost = stranded(story, tags)
+    if lost and not force:
+        raise TimelineError(f"{s['num']} {s['name']} holds {', '.join(lost)}; add --force to remove it, "
+                            'and they lose their place')
+    strand(story, tags)
     beats = sum(b['done'] for b in s['beats'])
     timeline.keep_work(f"{s['num']} {s['name']}", (['its script'] if s['script'] else [])
               + ([f"{beats} ticked beat{'s' if beats > 1 else ''}"] if beats else [])

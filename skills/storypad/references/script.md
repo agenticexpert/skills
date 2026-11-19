@@ -14,6 +14,8 @@ audio.
      and the scenes on either side, in the venue's voice and paced to the target length.
 3. Write only into `## Script` of `scenes/<File>`. A script already there is the owner's: change it
    only on their ask, and then only the lines they name.
-4. Run `storypad.py sync`, then `todo <story>`.
-5. Reply with each scene written, by number and name, an agent's draft quoted for the owner to
-   approve or change, and each scene still without a script.
+4. An agent's draft: add the threads and events it creates (`thread add`, `event add`). The owner's
+   words get events only when the owner asks.
+5. Run `storypad.py sync`, then `todo <story>`.
+6. Reply with each scene written, by number and name, an agent's draft quoted for the owner to
+   approve or change, the threads and events it added, and each scene still without a script.

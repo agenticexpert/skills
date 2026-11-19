@@ -55,7 +55,7 @@ python {skills}/scripts/manage_branches.py show <project> --return
 Announce lines print first, the JSON answer after them — parse from the first `{`. The answer carries `origin`, `origin_anchor` and `mid`, and sets `drift` when the anchor was gone and the record was dropped.
 
 - `origin_anchor` names a task → resume it from the first unchecked criterion on disk (`execute.md` → **Pausing**).
-- `origin_anchor` is null → take the origin milestone's own next task.
+- `origin_anchor` is null → take the origin milestone's next task per `execute.md` → **Selecting the Next Task**.
 - `mid` is null → the current milestone still holds workable tasks; stay in it.
 
 The script prints one line per hop and closes each record it consumes. Do not repeat those lines.

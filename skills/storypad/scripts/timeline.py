@@ -7,8 +7,9 @@ bare number is the scene. A layer end is a shot id (its start;
 its end when it is the layer's `to`), a shot id plus seconds into it (`3b+8`), or `open` for a
 layer that carries across the scene's edge. A take is a made file for a shot, `3a.1`, `3a.2`;
 `3a.1+` is the one approved; its `in` is where in the file the cut starts it. A note on a shot,
-layer, take or pin is never part of the content. A pin runs from a shot id or scene number to another,
-or over the whole story when both are empty.
+layer, take or pin is never part of the content. A story's own pin runs from a shot id or scene number to
+another, or over the whole story when both are empty; a pin of the world (world.md) holds from one of its
+threads or records, or over every story.
 
 Shots, layers, takes and pins are added, changed, moved and removed here, by scene number and
 id; the files they keep sit in the story's assets/ or stay links, and clean lists the ones none
@@ -24,6 +25,8 @@ import re
 import urllib.request
 from pathlib import Path
 
+import assets
+from continuity import follow, marked_in, story_thread, strand, stranded, thread_end
 from storyfile import TimelineError, cell, meta_pairs, name, same, save, slug, table, table_text, unique
 
 ENDS = ('cut', 'match', 'dissolve', 'fade')
@@ -222,9 +225,10 @@ def next_take(scene, shot_id, retired=()):
 def basis(scene, shot, pins, scenes):
     """What a shot's prompt and approved take draw on, as a short key: its shows line (else its name),
     its scene's script and each pin over it but one keeping a take of the shot itself."""
-    over = sorted(f"{p['name']}|{p['keep']}|{ref_file(scenes, p['ref']) or p['ref']}"
+    over = sorted(f"{p['name']}|{p['keep']}|{p.get('kept') or ref_file(scenes, p['ref']) or p['ref']}"
                   for p in pins_over(pins, scenes, shot['id']) if p['ref'].split('.')[0] != shot['id'])
-    return hashlib.sha1('\n'.join([shot['shows'] or shot['name'], scene['script'], *over]).encode()).hexdigest()[:8]
+    uses = [shot['uses']] if shot.get('uses') else []
+    return hashlib.sha1('\n'.join([shot['shows'] or shot['name'], scene['script'], *over, *uses]).encode()).hexdigest()[:8]
 
 
 def fill_basis(scene, pins, scenes):
@@ -248,7 +252,7 @@ def to_review(scene, shot, pins, scenes):
 
 
 def review_text(what):
-    return f"{' and '.join(what)}, since its shows line, the script or a pin over it changed"
+    return f"{' and '.join(what)}, since its shows line, the script, a pin over it or a record it uses changed"
 
 
 def shot_tasks(scene, pins, scenes):
@@ -342,6 +346,8 @@ def rename(scenes, pins, removed, new):
     for p in pins:
         p['from'], p['to'] = new(p['from']), new(p['to'])
         p['ref'] = new(p['ref']) if TAKE.match(p['ref']) else p['ref']
+        if p.get('over') is not None:
+            p['over'] = {new(x) for x in p['over']}
     return [new(x) for x in removed]
 
 
@@ -449,7 +455,7 @@ def edit_shot(story, a):
     """Add, change, move or remove a shot; returns the scenes it changed. A prompt set, or --reviewed,
     keeps what the prompt (and with --reviewed the approved take) now draws on."""
     pairs = meta_pairs(getattr(a, 'meta', None), SHOTS + (BASIS,))
-    pins = story['pins'] + story['series_pins']
+    pins = story['pins'] + story['world_pins']
     if a.op == 'add':
         s = find_scene(story, a.target)
         shots = s['shots']
@@ -478,8 +484,10 @@ def edit_shot(story, a):
     elif a.op == 'move':
         dest, j = scene_of(story, a.to) if SHOT.match(a.to.strip()) else (find_scene(story, a.to), None)
         if dest is not s:
+            shot = shots[i]
             gone, story['removed'] = move_shot(s, i, dest, len(dest['shots']) if j is None else j,
                                                         story['pins'], story['scenes'], story['removed'])
+            follow(story, lambda x: shot['id'] if x == gone else x)
             retire(story, gone)
             return [s, dest]
         was = spans(story['pins'], story['scenes'])
@@ -487,8 +495,16 @@ def edit_shot(story, a):
         unmoved(was, lambda x: x, story['pins'], story['scenes'])
     else:
         shot, takes = shots[i], [t['id'] for t in s['takes'] if t['shot'] == shots[i]['id']]
-        remove_shot(s, i, story['pins'], story['scenes'])
+        lost = stranded(story, {shot['id']})
+        try:
+            remove_shot(s, i, story['pins'], story['scenes'])
+        except TimelineError as e:
+            raise TimelineError(f"{e}; it also holds {', '.join(lost)}") if lost else e
+        if lost and not a.force:
+            raise TimelineError(f"{shot['id']} {shot['name']} holds {', '.join(lost)}; add --force to "
+                                'remove it, and they lose their place')
         keep_work(f"{shot['id']} {shot['name']}", [f"takes {', '.join(takes)}"] if takes else [], a.force)
+        strand(story, {shot['id']})
         retire(story, shot['id'])
     return [s]
 
@@ -524,7 +540,9 @@ def edit_layer(story, a):
         return [s]
     run = carry(story['scenes'], s, layer)
     held, given = layer['file'] and local(story['path'], layer['file']), Path(a.file or '').expanduser()
-    if a.file and not a.link and held and held.is_file() and given.is_file() and filecmp.cmp(held, given, shallow=False):
+    if a.file and a.file.startswith('@'):
+        file = record_ref(story, a.file)
+    elif a.file and not a.link and held and held.is_file() and given.is_file() and filecmp.cmp(held, given, shallow=False):
         file = layer['file']
     elif a.file:
         file = keep_asset(story, f"{run[0][0]['num']} {layer['name']}", a.file, a.link)
@@ -543,14 +561,14 @@ def edit_take(story, a):
         s, i = scene_of(story, a.target)
         shot = s['shots'][i]
         tid = next_take(s, shot['id'], story['removed'])
-        over = pins_over(story['pins'] + story['series_pins'], story['scenes'], shot['id'])
+        over = pins_over(story['pins'] + story['world_pins'], story['scenes'], shot['id'])
         refs = a.refs if a.refs is not None else \
             ', '.join(dict.fromkeys(ref_file(story['scenes'], p['ref']) or p['ref'] for p in over))
         prompt = a.prompt if a.prompt is not None else shot['row'].get('prompt')
         take = {'id': tid, 'shot': shot['id'], 'approved': False, 'prompt': cell(prompt),
                 'model': cell(a.model), 'refs': cell(refs), 'in': seconds(a.inpoint),
                 'note': cell(a.note), 'row': dict(pairs)}
-        take['file'] = keep_asset(story, tid, a.file, a.link)
+        take['file'] = record_ref(story, a.file) if a.file.startswith('@') else keep_asset(story, tid, a.file, a.link)
         s['takes'].append(take)
     else:
         m = TAKE.match(a.target.strip().rstrip('+'))
@@ -578,16 +596,21 @@ def edit_take(story, a):
     elif a.op == 'approve' or a.approve:
         approve(s, take)
         shot = s['shots'][find_shot(s['shots'], take['shot'])]
-        take['row'][BASIS] = basis(s, shot, story['pins'] + story['series_pins'], story['scenes'])
+        take['row'][BASIS] = basis(s, shot, story['pins'] + story['world_pins'], story['scenes'])
     return [s]
 
 
 def pin_ref(story, a, start, end):
-    """What a pin keeps: a take id, a link, or a file copied into assets/."""
+    """What a pin keeps: a take id, a link, or a file copied into assets/; a world's pin never a take."""
     if a.ref and TAKE.match(a.ref):
-        if not find_take(story.get('scenes', []), a.ref):
+        if 'scenes' not in story:
+            raise TimelineError(f"{a.ref} is a take of one story; a pin of the world keeps a file, a link or "
+                                "@name: give the take's file")
+        if not find_take(story['scenes'], a.ref):
             raise TimelineError(f'no take {a.ref} in the story')
         return a.ref
+    if a.ref and a.ref.startswith('@'):
+        return record_ref(story, a.ref)
     if a.ref:
         return keep_asset(story, getattr(a, 'rename', None) or a.name, a.ref, a.link)
     if 'scenes' not in story or not start or start != end or not SHOT.match(start):
@@ -600,7 +623,7 @@ def pin_ref(story, a, start, end):
 
 
 def edit_pin(story, a, end):
-    """Add, change or remove a pin of a story (ends: shots and scenes) or a series (ends: threads)."""
+    """Add, change or remove a pin of a story (ends: shots and scenes) or a world (an end: a thread or @record)."""
     pins = story['pins']
     pairs = meta_pairs(getattr(a, 'meta', None), PINS)
     found = [p for p in pins if same(p['name'], a.name)]
@@ -687,6 +710,72 @@ def pin_end(text, scenes):
     raise TimelineError(in_unread(scenes, text) or f'no scene or shot {text} in the story')
 
 
+def world_pin_end(world):
+    """A world pin end: one of its series by name (every episode of it), one of its threads by name, or `@name` of one
+    of its records; None for every story."""
+    thread = thread_end([t['thread'] for t in world['threads']])
+
+    def end(text):
+        text = (text or '').strip()
+        if text.startswith('@'):
+            return record_ref(world, text)
+        return series_of(world, text) or thread(text)
+    return end
+
+
+def series_of(world, text):
+    """The world's series named `text`, as its folder's name; None when none is."""
+    return next((s for s in world['series'] if same(s, text)), None)
+
+
+def shared_pin(pin):
+    """Whether a pin (or its table row) kept by a story or series holds on a shared thing: its From is no scene or
+    shot id, so it belongs in the world's world.md."""
+    return bool(pin['from']) and not ID.match(pin['from'])
+
+
+def shared_end(world, text):
+    """Whether a pin end names one of the world's series, threads or records: a pin of the world."""
+    text = (text or '').strip()
+    return text.startswith('@') or bool(series_of(world, text)) or any(same(t['thread'], text) for t in world['threads'])
+
+
+def world_pins(story):
+    """The world's pins that hold in `story`, each a copy with its file as a path from the story (`kept`, as world.md
+    has it): one from a series over the whole of each of its episodes; one from a thread over its On screen there,
+    the whole story where the thread has a mark there and no On screen; one from a record over the scenes and shots
+    using it; one with no From over the whole story. A pin over a shot is over its scene too, as a story's own pin
+    is."""
+    world, out = story['world'] or {}, []
+    for p in world.get('pins', []):
+        if p['broken']:
+            continue
+        over = None
+        series = p['from'] and series_of(world, p['from'])
+        if series:
+            if not story['key'].startswith(f'{series}/'):
+                continue
+        elif p['from'] and p['from'].startswith('@'):
+            over = assets.slots_of(story, p['from'])
+            if not over:
+                continue
+        elif p['from']:
+            if story['key'] not in marked_in(world, p['from']):
+                continue
+            over = set(story_thread(story, p['from'])['on']) or None
+        if over:
+            over |= {str(s['num']) for s in story['scenes'] if any(x['id'] in over for x in s['shots'])}
+        out.append({**p, 'from': over and p['from'], 'to': over and p['to'], 'over': over,
+                    'ref': assets.from_world(story, p['ref']), 'kept': p['ref']})
+    return out
+
+
+def world_pin_lines(world):
+    """The world's pins, one line each: what it keeps, where it holds and its file."""
+    return [f"  {p['name']}  keep {p['keep']}  ·  {p['from'] or 'every story'}  ·  {p['ref']}"
+            + (f"  ·  {p['note']}" if p['note'] else '') for p in world['pins']]
+
+
 def in_unread(scenes, tag):
     """Why shot or take `tag` can't be found when its scene can't be read; None otherwise."""
     m = ID.match(tag)
@@ -726,6 +815,8 @@ def pins_table(head, pins):
 
 def covers(pin, scenes):
     """The scene numbers and shot ids a pin runs over, in story order."""
+    if pin.get('over') is not None:
+        return set(pin['over'])
     marks = [(str(s['num']), tag) for s in scenes for tag in [str(s['num'])] + [x['id'] for x in s['shots']]]
     if pin['from'] is None:
         return {n for n, _ in marks} | {t for _, t in marks}
@@ -1185,6 +1276,21 @@ def local(root, ref):
     return path if path.is_absolute() else root / path
 
 
+def as_given(ref):
+    """Whether a file is kept as given, never as a path from a folder: a link, an absolute or home path, or `@name`."""
+    return bool(re.match(r'^(https?://|/|~|@)', ref))
+
+
+def record_ref(story, ref):
+    """`@name` checked against the story's assets and locations, as it is kept."""
+    return f"@{assets.key(assets.find(story, ref))}"
+
+
+def resolve(story, ref):
+    """The file a take, pin or layer keeps: a `@name` gives its record's file, '' while it has none."""
+    return (assets.file_of(story, ref) or '') if (ref or '').startswith('@') else ref
+
+
 def keep_asset(story, label, source, weak):
     """The file a pin, take or layer stores: a link as given, or a copy inside assets/."""
     source = name(source)
@@ -1215,15 +1321,17 @@ def keep_asset(story, label, source, weak):
 def kept_files(story):
     """Each pin, take and layer with the file it keeps: (who, as written, its path; None for a missing take)."""
     scenes = story.get('scenes', [])
-    named = [(f"pin {p['name']}", p['ref'], ref_file(scenes, p['ref'])) for p in story['pins']]
-    named += [(f"take {t['id']}", t['file'], t['file']) for s in scenes for t in s['takes']]
-    named += [(f"layer {l['name']} in {s['num']}", l['file'], l['file']) for s in scenes for l in s['layers']]
-    return named
+    named = [(f"pin {p['name']}", p['ref'], resolve(story, ref_file(scenes, p['ref']))) for p in story.get('pins', [])]
+    named += [(f"take {t['id']}", t['file'], resolve(story, t['file'])) for s in scenes for t in s['takes']]
+    named += [(f"layer {l['name']} in {s['num']}", l['file'], resolve(story, l['file']))
+              for s in scenes for l in s['layers']]
+    return named + [(f"{r['kind']} {assets.key(r)}", r['file'], r['file'])
+                    for r in story.get('records', [])]
 
 
 def assets_missing(story):
     """Each pin whose end left the story, and each pin, take or layer whose file is gone."""
-    out = [f"pin {p['name']}: {p['broken']}" for p in story['pins'] if p['broken']]
+    out = [f"pin {p['name']}: {p['broken']}" for p in story.get('pins', []) if p['broken']]
     scenes = story.get('scenes', [])
     for who, ref, path in kept_files(story):
         if path is None:

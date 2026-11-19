@@ -155,7 +155,7 @@ def compute_status(tasks):
 def find_next(tasks):
     done_slugs = {t["slug"] for t in tasks if t["status"] == "done"}
     for t in tasks:
-        if t["status"] not in ("todo", "pending"):
+        if t["status"] not in ("paused", "todo", "pending"):
             continue
         if all(dep in done_slugs for dep in t["deps"]):
             return t["seq"]
@@ -343,6 +343,7 @@ def main():
     oob_plain, oob_markers = split_markers(oob_order, data["branches"])
     oob_slugs = sorted(oob_plain)
     oob_tasks = load_tasks(milestone_dir, oob_slugs) if oob_slugs else []
+    oob_tasks.sort(key=lambda t: (t["status"] != "done", t["status"] == "x"))
     print(render(milestone, tasks, oob_tasks, markers, oob_markers, data["branches"], t_key))
 
 
