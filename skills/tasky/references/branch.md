@@ -69,7 +69,11 @@ python {skills}/scripts/manage_branches.py close <project> <MID>
 python {skills}/scripts/manage_branches.py drop  <project> <MID>
 ```
 
-`close` marks the detour finished when the user says so. `drop` removes both marker rows, deletes the record, and restores the anchor's status — run it when the user rejects an auto-branch.
+`close` marks the detour finished when the user says so. `drop` removes both marker rows, deletes the record, and restores the anchor's prior status only while the anchor is still PAUSED; a status set since stays — run it when the user rejects an auto-branch.
+
+## Records follow every write
+
+Every `manage_*` write realigns branch records with their marker rows: a moved or renamed milestone carries its branch, a deleted one removes it, a task renamed keeps holding the return, an anchor moved out of its origin turns the return onto the origin milestone. Each repair prints one line; state its substance, never redo it by hand.
 
 ---
 

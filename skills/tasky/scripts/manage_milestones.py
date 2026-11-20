@@ -22,6 +22,7 @@ import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import TASKY_ROOT, validate_slug, validate_slash_path
+from position import settle
 
 
 # ---------------------------------------------------------------------------
@@ -377,7 +378,6 @@ def cmd_move(args):
     insert_at = max(1, min(args.insert, len(order) + 1)) - 1  # convert to 0-based
     order.insert(insert_at, args.slug)
 
-    print("Warning: verify no dependency in this track points forward after the move.")
     save_project_json(args.project, data)
     print(f"Moved milestone '{args.slug}' to position {args.insert}.")
 
@@ -634,6 +634,10 @@ def main():
         cmd_unhide(args)
     else:
         parser.print_help()
+
+    if args.command not in (None, "list", "hide", "unhide"):
+        settle(args.project, [f"{args.roadmap}/{args.track}"]
+               + ([args.dest] if getattr(args, "dest", None) else []))
 
 
 if __name__ == "__main__":

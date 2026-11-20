@@ -54,7 +54,7 @@ Read the matched playbook in full, in this context, before the first action it g
 WHEN: The user wants to decompose a complex project into tracks, milestones, or tasks — figuring out what the pieces are, what order they go in, or what the scope is.
 EXECUTE: references/plan.md
 
-WHEN: The user wants to create, rename, resequence, or restructure any part of the hierarchy — projects, roadmaps, tracks, milestones, or tasks.
+WHEN: The user wants to create, rename, resequence, or restructure any part of the hierarchy — projects, roadmaps, tracks, milestones, or tasks — or attach a reference (a spec, a design doc) to a roadmap, track or milestone.
 EXECUTE: references/structure.md
 
 WHEN: The user asks about status, progress, what's active, what's next, what's blocked, or wants to see a view of the project.

@@ -23,6 +23,8 @@ import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import TASKY_ROOT
+from position import load_project, project_state, track_state
+import refs
 FILL_COUNT     = 20
 LEGEND         = " █ done  ▓ doing  ▒ paused  ░ pending"
 
@@ -156,13 +158,13 @@ def load_milestone_stats(track_dir, roadmap, track_name, mslug, data):
 
 
 def load_all_milestones(project, roadmap, track_filter=None):
-    """Returns (seq_milestones, oob_milestones, hidden_milestones)."""
+    """Returns (seq_milestones, oob_milestones, hidden_milestones, tracks), tracks in the order listed."""
     data = load_project_json(project)
     _, _, hidden_milestones_dict = parse_focus_hide(data)
 
     roadmap_dir = os.path.join(TASKY_ROOT, project, roadmap)
     if not os.path.isdir(roadmap_dir):
-        return [], [], []
+        return [], [], [], []
 
     rm_info = data["tracks"].get(roadmap, {})
     track_order = rm_info.get("order", [])
@@ -177,6 +179,7 @@ def load_all_milestones(project, roadmap, track_filter=None):
     milestones        = []
     oob_milestones    = []
     hidden_milestones = []
+    listed_tracks     = []
     global_seq = 0
 
     for track_name in all_tracks:
@@ -185,6 +188,7 @@ def load_all_milestones(project, roadmap, track_filter=None):
         track_dir = os.path.join(roadmap_dir, track_name)
         if not os.path.isdir(track_dir):
             continue
+        listed_tracks.append(track_name)
 
         m_key = f"{roadmap}/{track_name}"
         ms_order   = data["milestones"].get(m_key, [])
@@ -218,7 +222,7 @@ def load_all_milestones(project, roadmap, track_filter=None):
                 entry["slots"] = data["milestone_slots"].get(slot_key, [])
                 oob_milestones.append(entry)
 
-    return milestones, oob_milestones, hidden_milestones
+    return milestones, oob_milestones, hidden_milestones, listed_tracks
 
 
 # ---------------------------------------------------------------------------
@@ -241,7 +245,10 @@ def milestone_bar(status, done, total, slot_idx, num_slots):
     return "░░░░░"
 
 
-def render(roadmap, milestones, oob_milestones=None, hidden_milestones=None, show_all=False):
+def render(roadmap, milestones, oob_milestones=None, hidden_milestones=None, show_all=False,
+           active_seq=None, references=()):
+    """active_seq is the seq of the milestone position.py puts "next" in. references form their own
+    band below the rest: no count, never in the total."""
     if not milestones and not (oob_milestones or []) and not (hidden_milestones or []):
         return "(no milestones)"
     if oob_milestones is None:
@@ -254,10 +261,11 @@ def render(roadmap, milestones, oob_milestones=None, hidden_milestones=None, sho
 
     # Columns run out to the last slot something actually occupies. Trailing
     # slots no milestone is scheduled in are not drawn.
-    occupied = [s for m in milestones + oob_milestones for s in m.get("slots", [])]
+    occupied = ([s for m in milestones + oob_milestones for s in m.get("slots", [])]
+                + [s for r in references for s in r.get("slots", [])])
     n = max(occupied) if occupied else count
 
-    max_name = max((len(m["name"]) for m in milestones), default=4)
+    max_name = max([len(m["name"]) for m in milestones] + [len(refs.label(r)) for r in references], default=4)
     label_w  = seq_w + 2 + max_name + 3
 
     # Totals include all milestones (true state)
@@ -287,25 +295,9 @@ def render(roadmap, milestones, oob_milestones=None, hidden_milestones=None, sho
             max_visible = max(1, avail // 6)
             overflow_count = n - max_visible
 
-    # Find active milestone
-    active_seq = milestones[-1]["seq"] if milestones else None
-    found = False
-    for m in milestones:
-        if m["status"] in ("doing", "ready"):
-            active_seq = m["seq"]
-            found = True
-            break
-    if not found:
-        for m in milestones:
-            if m["done"] > 0 and m["status"] != "done":
-                active_seq = m["seq"]
-                found = True
-                break
-    if not found:
-        for m in milestones:
-            if m["status"] not in ("done", "x"):
-                active_seq = m["seq"]
-                break
+    if active_seq is None:
+        active_seq = next((m["seq"] for m in milestones if m["status"] not in ("done", "x")),
+                          milestones[-1]["seq"] if milestones else None)
 
     out = []
     out.append(f"  {roadmap}")
@@ -373,7 +365,7 @@ def render(roadmap, milestones, oob_milestones=None, hidden_milestones=None, sho
 
     # Separator after sequenced rows
     needs_bottom = True
-    if oob_milestones or (show_all and hidden_milestones):
+    if oob_milestones or (show_all and hidden_milestones) or references:
         out.append(INDENT + "─" * DASHES + ("┼─────") * visible_cols + "┼" + "─" * trailing_w)
         needs_bottom = False
 
@@ -409,7 +401,7 @@ def render(roadmap, milestones, oob_milestones=None, hidden_milestones=None, sho
             count    = f"{m['done']}/{m['total']}"
             trailing = count.rjust(trailing_w)
             out.append(label + content + trailing)
-        if show_all and hidden_milestones:
+        if (show_all and hidden_milestones) or references:
             out.append(INDENT + "─" * DASHES + ("┼─────") * visible_cols + "┼" + "─" * trailing_w)
         else:
             out.append(INDENT + "─" * DASHES + ("┴─────") * visible_cols + "┴" + "─" * trailing_w)
@@ -428,6 +420,22 @@ def render(roadmap, milestones, oob_milestones=None, hidden_milestones=None, sho
             count    = f"{m['done']}/{m['total']}"
             trailing = count.rjust(trailing_w)
             out.append(label + content + trailing)
+        if references:
+            out.append(INDENT + "─" * DASHES + ("┼─────") * visible_cols + "┼" + "─" * trailing_w)
+        else:
+            out.append(INDENT + "─" * DASHES + ("┴─────") * visible_cols + "┴" + "─" * trailing_w)
+            needs_bottom = False
+
+    if references:
+        for r in references:
+            name = refs.label(r)
+            r_label = f" {refs.MARK.rjust(seq_w)}  {name}"
+            label = INDENT + r_label + " " * (label_w - len(INDENT) - len(r_label))
+            own = set(r.get("slots", []))
+            content = "".join("│" + (refs.BAR if p in own else "     ") for p in range(1, max_visible + 1))
+            if overflow_count > 0:
+                content += "│" + (refs.BAR if any(s > max_visible for s in own) else "     ")
+            out.append(label + content + "│")
         out.append(INDENT + "─" * DASHES + ("┴─────") * visible_cols + "┴" + "─" * trailing_w)
         needs_bottom = False
 
@@ -461,8 +469,11 @@ def render(roadmap, milestones, oob_milestones=None, hidden_milestones=None, sho
     else:
         out.append(INDENT + " " * (DASHES + 6 * visible_cols + 1) + count_str.rjust(trailing_w))
     out.append("")
-    out.append(LEGEND)
+    out.append(LEGEND + (f"  {refs.BAR[0]} reference" if references else ""))
     out.append("")
+    if references:
+        out.extend(refs.path_lines(references))
+        out.append("")
 
     # Status line
     active = next((m for m in milestones if m["seq"] == active_seq), None) if active_seq else None
@@ -492,9 +503,19 @@ def main():
                         help="Show focus-hidden milestones (marked with ~).")
     args = parser.parse_args()
 
-    milestones, oob_milestones, hidden_milestones = load_all_milestones(args.project, args.roadmap, args.track)
+    milestones, oob_milestones, hidden_milestones, listed_tracks = load_all_milestones(
+        args.project, args.roadmap, args.track)
     title = f"{args.roadmap}/{args.track}" if args.track else args.roadmap
-    print(render(title, milestones, oob_milestones, hidden_milestones, show_all=args.show_all))
+    data = load_project(args.project)
+    tracks = list(dict.fromkeys(m["track"] for m in milestones))
+    pointers = [project_state(args.project, data)["t_key"]] + [
+        track_state(args.project, data, args.roadmap, t)["t_key"] for t in tracks]
+    seqs = {f"{args.roadmap}/{m['track']}/{m['name']}": m["seq"] for m in milestones}
+    active_seq = next((seqs[k] for k in pointers if k in seqs), None)
+    print(render(title, milestones, oob_milestones, hidden_milestones, show_all=args.show_all,
+                 active_seq=active_seq,
+                 references=refs.band(os.path.join(TASKY_ROOT, args.project, args.roadmap), listed_tracks,
+                                      [(m["track"], m["name"]) for m in milestones + oob_milestones + hidden_milestones])))
 
 
 if __name__ == "__main__":

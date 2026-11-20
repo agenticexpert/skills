@@ -67,6 +67,11 @@
   storypad.py when <story> <moment>                          ("" clears it)
   storypad.py new [<world>/]<title> [--series] [--when <moment>] [--venue V] [--premise P] [--audience A]
                   [--length L]
+  storypad.py version save <story|series|world> <name> [--note T] [--film F] [--from DIR]
+  storypad.py version list <story|series|world>
+  storypad.py version show <story|series|world> <ref> [<file>]
+  storypad.py version diff <story|series|world> <ref> [<ref>]
+  storypad.py version restore <story|series|world> <ref>
 
 Every add and set also takes --meta key=value, repeatable; key= removes it. On a shot, layer,
 take, pin or thread it is a column of its own; on a scene or an episode, a frontmatter key.
@@ -177,6 +182,15 @@ layer with no file but a text (--meta text=, a title's words) is drawn with ffmp
 shown on a plain card.
 --size is an even width and height. The last cut is replaced only once the new one is made. clean
 lists the files in assets/ that no pin, take or layer keeps; --delete removes them.
+
+Every command but migrate that changes a story's, series' or world's text files keeps the state it leaves
+them in as a version, versions/<number>/ in that folder, and first the state it found when they were
+changed outside storypad since. Text is each .md outside assets/, takes/ and build/; every other file is listed by path and
+size, never copied. A story's threads, events, assets, locations, world pins and moments are in world.md:
+their versions are the world's. version save names the files now, or with --from those of a folder laid out
+the same, with a note and the film they made. A ref is a version's name or number. diff compares a ref with
+a second one, else with the files now; restore puts a ref's text files back and removes those it doesn't
+keep, the state before kept first. show, todo, check, compile, clean and cut never read versions/.
 """
 
 import argparse
@@ -185,6 +199,7 @@ from pathlib import Path
 
 import cut
 import timeline
+import versions
 from assets import STATES, detail_record, find, made_reply
 from continuity import (KINDS, SEEN, THREAD_ICON, detail_thread, list_form, series_story, series_view, world_story,
     world_view)
@@ -477,6 +492,15 @@ def parser():
     wh = sub.add_parser('when')
     wh.add_argument('story', type=story_path)
     wh.add_argument('moment', help='the moment of its world\'s timeline the story is set at; "" clears it')
+    ve = group('version', ('save', 'list', 'show', 'diff', 'restore'),
+               lambda op: None if op == 'list' else 'a name for it, as v6' if op == 'save' else
+               "a version's name or number")
+    ve['save'].add_argument('--note', help='what it is, in your words')
+    ve['save'].add_argument('--film', help='the film it made')
+    ve['save'].add_argument('--from', dest='source', type=Path, help='a folder laid out like the story, series or '
+                                                                     'world whose text files it keeps; default: its own')
+    ve['show'].add_argument('file', nargs='?', help='one of its text files, as scenes/<key>.md')
+    ve['diff'].add_argument('to', nargs='?', help='a second version; default: the files now')
     ls = sub.add_parser('list')
     ls.add_argument('root', type=Path, nargs='?', default=STORIES)
     return p
@@ -489,6 +513,12 @@ def run(a):
         return new(a)
     if not a.story.is_dir():
         raise TimelineError(f'no story or series at {a.story}')
+    if a.cmd == 'version':
+        return {'save': lambda: versions.save_version(a.story, a.target, a.note, a.film, a.source),
+                'list': lambda: versions.version_list(a.story),
+                'show': lambda: versions.show_version(a.story, a.target, a.file),
+                'diff': lambda: versions.diff_versions(a.story, a.target, a.to),
+                'restore': lambda: versions.restore_version(a.story, a.target)}[a.op]()
     if a.cmd == 'migrate':
         return migrate(a.story, a.into)
     if a.cmd == 'detail' and is_world(a.story) and a.thread:
@@ -578,8 +608,13 @@ def run(a):
 
 def main():
     a = parser().parse_args()
+    if a.cmd != 'migrate':
+        versions.start(sys.argv[1:])
     try:
-        print(run(a))
+        try:
+            print(run(a))
+        finally:
+            versions.finish()
     except (TimelineError, OSError) as e:
         sys.exit(f'storypad: {e}')
 

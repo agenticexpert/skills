@@ -23,6 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import TASKY_ROOT
+import refs
 
 
 # ---------------------------------------------------------------------------
@@ -266,7 +267,7 @@ def render_progress_bar(done, total, width=30):
     return bar, pct
 
 
-def render(project, roadmap, tracks, oob_tracks=None, hidden_tracks=None, show_all=False):
+def render(project, roadmap, tracks, oob_tracks=None, hidden_tracks=None, show_all=False, references=()):
     if oob_tracks is None:
         oob_tracks = []
     if hidden_tracks is None:
@@ -282,7 +283,7 @@ def render(project, roadmap, tracks, oob_tracks=None, hidden_tracks=None, show_a
     lead_sep  = ""
     col_seq   = 3
 
-    max_name_len = max(len(t["name"]) for t in all_tracks_for_totals)
+    max_name_len = max([len(t["name"]) for t in all_tracks_for_totals] + [len(refs.label(r)) for r in references])
     col_track = max(8, min(37, max_name_len + 2))
 
     total_tasks_done = sum(t["tasks_done"]  for t in all_tracks_for_totals)
@@ -373,6 +374,15 @@ def render(project, roadmap, tracks, oob_tracks=None, hidden_tracks=None, show_a
         for t in hidden_tracks:
             lines.append(data_line("~".rjust(col_seq), t))
 
+    if references:
+        lines.append(mid_sep)
+        for r in references:
+            name = refs.label(r)
+            if len(name) > col_track - 2:
+                name = name[:col_track - 5] + "..."
+            lines.append(lead_data + refs.MARK.rjust(col_seq) + " │" + f" {name}".ljust(col_track) + "│" +
+                         " " * col_progress + "│" + " " * col_status + "│" + " " * col_miles + "│")
+
     lines.append(bottom_sep)
 
     summary_bar, summary_pct = render_progress_bar(total_tasks_done, total_tasks_all)
@@ -391,6 +401,9 @@ def render(project, roadmap, tracks, oob_tracks=None, hidden_tracks=None, show_a
         " " + f"{total_tasks_done}/{total_tasks_all}".rjust(col_tasks)
     )
     lines.append(summary_line)
+    if references:
+        lines.append("")
+        lines.extend(refs.path_lines(references))
 
     return "\n".join(lines)
 
@@ -413,7 +426,9 @@ def main():
     print(f"Roadmap: {args.project}/{args.roadmap}")
     print()
     print()
-    print(render(args.project, args.roadmap, tracks, oob_tracks, hidden_tracks, show_all=args.show_all))
+    print(render(args.project, args.roadmap, tracks, oob_tracks, hidden_tracks, show_all=args.show_all,
+                 references=refs.band(os.path.join(TASKY_ROOT, args.project, args.roadmap),
+                                      [t["name"] for t in tracks + oob_tracks + hidden_tracks])))
 
 
 if __name__ == "__main__":

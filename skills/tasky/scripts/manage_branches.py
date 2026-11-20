@@ -27,12 +27,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import TASKY_ROOT, validate_slug, validate_slash_path
 from claims import other_holder
+from position import HOP_CAP, current_position, exhausted, return_walk, settle
 
 MID_RE = re.compile(r"^branch--[0-9a-f]{8}$")
-
-WORKABLE = ("todo", "pending", "doing", "paused")
-
-HOP_CAP = 64
 
 RECORD_FIELDS = (
     "id", "origin", "origin_anchor", "anchor_prior_status",
@@ -46,17 +43,6 @@ RECORD_FIELDS = (
 
 def is_marker(slug):
     return bool(MID_RE.fullmatch(slug))
-
-
-def split_markers(order, branches=None):
-    """Partition an order array into task slugs and [(mid, after_index)] marker rows."""
-    task_slugs, markers = [], []
-    for slug in order:
-        if is_marker(slug):
-            markers.append((slug, len(task_slugs)))
-        else:
-            task_slugs.append(slug)
-    return task_slugs, markers
 
 
 # ---------------------------------------------------------------------------
@@ -118,18 +104,6 @@ def read_task_status(path):
             if m:
                 return m.group(1).strip()
     return "X"
-
-
-def read_task_deps(path):
-    if not os.path.isfile(path):
-        return []
-    with open(path) as f:
-        for line in f:
-            m = re.match(r"^Dependencies:\s*\[(.*)\]", line.strip())
-            if m:
-                raw = m.group(1).strip()
-                return [d.strip() for d in raw.split(",") if d.strip()] if raw else []
-    return []
 
 
 def write_task_status(path, new_status):
@@ -195,28 +169,6 @@ def record_for_destination(data, t_key, open_only=False):
     return None
 
 
-def closing_index(data, rec):
-    order = order_of(data, rec["destination"], rec.get("oob", False))
-    return order.index(rec["id"]) if rec["id"] in order else len(order)
-
-
-def is_exhausted(project, data, rec):
-    """FR-7 — no workable entry above the closing marker."""
-    order = order_of(data, rec["destination"], rec.get("oob", False))
-    above = order[:closing_index(data, rec)]
-    slugs, _ = split_markers(above)
-    statuses = {}
-    for slug in slugs:
-        statuses[slug] = (read_task_status(task_file(project, rec["destination"], slug)) or "x").lower()
-    for slug in slugs:
-        if statuses[slug] not in WORKABLE:
-            continue
-        deps = read_task_deps(task_file(project, rec["destination"], slug))
-        if all(statuses.get(d) == "done" for d in deps):
-            return False
-    return True
-
-
 def drift_lines(project, data):
     """Every inconsistency the record set carries. Never repaired."""
     out = []
@@ -242,10 +194,10 @@ def drift_lines(project, data):
             )
         expected = None
         for other_mid, other in branches.items():
-            if other_mid != mid and other.get("destination") == rec.get("origin"):
+            if other_mid != mid and other.get("state") == "open" and other.get("destination") == rec.get("origin"):
                 expected = other_mid
                 break
-        if rec.get("parent") != expected:
+        if rec.get("state") == "open" and rec.get("parent") != expected:
             out.append(
                 f"{mid}: parent is {rec.get('parent')!r} but the record whose destination "
                 f"is '{rec.get('origin')}' is {expected!r}."
@@ -261,25 +213,6 @@ def drift_lines(project, data):
             if is_marker(slug) and slug not in branches:
                 out.append(f"{slug}: marker row in '{t_key}' has no record.")
     return out
-
-
-def current_position(project, data):
-    """§7 — the milestone holding this session's doing task, else the newest open record's destination."""
-    for t_key, order in data["tasks"].items():
-        slugs, _ = split_markers(order)
-        for slug in slugs:
-            path = task_file(project, t_key, slug)
-            status = read_task_status(path)
-            if status and status.lower() == "doing" and not other_holder(path):
-                return t_key
-    newest = None
-    for order, rec in enumerate(data["branches"].values()):
-        if rec.get("state") != "open":
-            continue
-        key = (rec.get("opened", ""), order)
-        if newest is None or key >= newest[0]:
-            newest = (key, rec)
-    return newest[1]["destination"] if newest else None
 
 
 # ---------------------------------------------------------------------------
@@ -425,12 +358,13 @@ def cmd_close(args):
 
 
 def restore_anchor(project, rec):
+    """The anchor's status from before the branch, only while it is still the PAUSED the branch left."""
     anchor = rec.get("origin_anchor")
     prior = rec.get("anchor_prior_status")
     if not anchor or not prior:
         return
     path = task_file(project, rec["origin"], anchor)
-    if os.path.isfile(path):
+    if (read_task_status(path) or "").upper() == "PAUSED":
         write_task_status(path, prior)
 
 
@@ -451,34 +385,25 @@ def cmd_drop(args):
 
 def describe(project, data, rec):
     out = {f: rec.get(f) for f in RECORD_FIELDS}
-    out["exhausted"] = is_exhausted(project, data, rec)
+    out["exhausted"] = exhausted(project, data, rec)
     return out
 
 
 def resolve_return(project, data):
     """FR-8 / FR-17 — walk home from the current position, one announced hop per level."""
     position = current_position(project, data)
-    hops, answer, changed = [], None, False
+    walk, capped = return_walk(project, data, position)
+    hops, answer = [], None
 
-    for _ in range(HOP_CAP):
-        rec = record_for_destination(data, position, open_only=True)
-        if rec is None or not is_exhausted(project, data, rec):
-            break
-
-        anchor = rec.get("origin_anchor")
-        origin_order = data["tasks"].get(rec["origin"], [])
-        anchor_live = bool(anchor) and anchor in origin_order and os.path.isfile(
-            task_file(project, rec["origin"], anchor)
-        )
-
-        if anchor_live:
+    for rec, anchor in walk:
+        if anchor:
             hop = {"mid": rec["id"], "origin": rec["origin"], "origin_anchor": anchor, "drift": None}
             print(f"{label(rec['destination'])} is done; back to {label(rec['origin'])} · {anchor}.")
             rec["state"] = "closed"
         else:
             hop = {
                 "mid": rec["id"], "origin": rec["origin"], "origin_anchor": None,
-                "drift": f"anchor {anchor!r} is gone from {rec['origin']}",
+                "drift": f"anchor {rec.get('origin_anchor')!r} is gone from {rec['origin']}",
             }
             print(
                 f"{label(rec['destination'])} is done; the task that held the return is gone, "
@@ -487,16 +412,15 @@ def resolve_return(project, data):
             remove_marker_rows(data, rec)
             data["branches"].pop(rec["id"], None)
 
-        changed = True
         hops.append(hop)
         answer = hop
         position = rec["origin"]
-    else:
+    if capped:
         hops.append({"mid": None, "origin": position, "origin_anchor": None,
                      "drift": f"return walk exceeded {HOP_CAP} hops"})
         print(f"Return walk exceeded {HOP_CAP} hops and stopped at {label(position)}.")
 
-    if changed:
+    if walk:
         save_project_json(project, data)
 
     return {"position": position, "hops": hops,
@@ -568,6 +492,11 @@ def main():
         cmd_show(args)
     else:
         parser.print_help()
+
+    if args.command == "open":
+        settle(args.project, [args.origin, args.destination])
+    elif args.command in ("close", "drop"):
+        settle(args.project, [])
 
 
 if __name__ == "__main__":

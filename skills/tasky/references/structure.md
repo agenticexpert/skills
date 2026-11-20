@@ -19,7 +19,7 @@ The user wants to create, rename, resequence, or restructure the hierarchy. Exec
 - **No `nn-` prefixes anywhere.** Filenames are plain slugs at every level.
 - **All ordering lives in `project.json`** — roadmaps, tracks, milestones, and tasks each have an ordered array.
 - The slug is the stable identity for dependency references.
-- No files at project, roadmap, track, or milestone level. Directory existence is the record.
+- No files at project, roadmap, track, or milestone level. Directory existence is the record. The one exception: a roadmap, track or milestone directory may hold `.references.json`, its references (see **References**).
 
 ### project.json schema
 
@@ -96,6 +96,7 @@ Creating:
 | Delete a **track**, **milestone**, or **roadmap** | Inbound deps unchecked, and references to the deleted item are silently stripped from `project.json` — the dependency is discarded, not dangling. Track and milestone delete also leave a stale `focus.hide` entry, so recreating the slug later comes back hidden | **Confirm** — name what depended on it |
 | `remove-dep` | Discards a declared dependency | **Confirm**, including when clearing a dep to unblock a move |
 | `hide` / `unhide` | Changes what every view shows; no data loss | Proceed |
+| Add or remove a **reference** | Changes only the reference band; no tasks or counts touched | Proceed |
 
 After a confirmed task rename or delete, fix the dangling `Dependencies:` lines in the affected task files — the script does not.
 
@@ -283,6 +284,23 @@ python {skills}/scripts/manage_milestones.py unhide <project> <roadmap> <track> 
 - Hidden items are excluded from all view rows by default.
 - Totals (progress bars, task counts) always include hidden items — true state is never obscured.
 - `--all` on any view script reveals hidden items marked with `~`.
+
+---
+
+## References
+
+A reference attaches a file or link (an overarching spec, a design doc) to a roadmap, a track or a milestone. It has no tasks, status or count and never enters a total.
+
+```
+python {skills}/scripts/manage_refs.py add    <project> <roadmap> <name> <path> [--track <track>] [--milestone <milestone>] [--slots 1,2]
+python {skills}/scripts/manage_refs.py remove <project> <roadmap> <name>
+```
+
+- No `--track` → the reference is on the roadmap. `--milestone` needs `--track`.
+- `--slots` → the milestone view draws `┄` under those positions; without it the cells stay blank.
+- `<name>` is a slug, unique within the roadmap. `<path>` is stored as given: a repo-relative path or a URL.
+- A reference is stored in its owner's directory, in `.references.json` (`{"name", "path", "slots"?}`), never in `project.json`. Renaming or moving the roadmap, track or milestone carries its references; deleting it removes them.
+- Views show references in their own band below the out-of-band rows, labelled `§`, with each path listed under the legend. The track view shows roadmap and track references; the milestone view shows all of them, or with a track filter that track's and the roadmap's.
 
 ---
 

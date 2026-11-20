@@ -29,32 +29,13 @@ import argparse
 import heapq
 import json
 import os
-import re
 
 ALL_STATUSES = {"todo", "ready", "doing", "paused", "pending", "done", "x"}
 
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import TASKY_ROOT
-from claims import other_holder
-
-MID_RE = re.compile(r"^branch--[0-9a-f]{8}$")
-
-
-def is_marker(slug):
-    return bool(MID_RE.fullmatch(slug))
-
-
-def split_markers(order, branches=None):
-    """Partition an order array into task slugs and [(mid, after_index)] marker rows."""
-    task_slugs, markers = [], []
-    for slug in order:
-        if is_marker(slug):
-            markers.append((slug, len(task_slugs)))
-        else:
-            task_slugs.append(slug)
-    return task_slugs, markers
-
+from position import label, load_project, project_state, read_task, split_markers
 
 HELD_MARK    = "  ← another session"
 
@@ -67,24 +48,6 @@ COUNTS_WIDTH = 7   # "ddd/ttt"
 # ---------------------------------------------------------------------------
 # Parsing
 # ---------------------------------------------------------------------------
-
-def read_task_meta(path):
-    """Return (status, deps) from a task file. Single pass."""
-    status = "x"
-    deps = []
-    with open(path) as f:
-        for line in f:
-            line = line.strip()
-            m = re.match(r"^Status:\s*(.+)$", line)
-            if m:
-                status = m.group(1).strip().lower()
-            m = re.match(r"^deps:\s*\[(.*)\]\s*$", line)
-            if m:
-                raw = m.group(1).strip()
-                if raw:
-                    deps = [d.strip() for d in raw.split(",") if d.strip()]
-    return status, deps
-
 
 def rollup(statuses):
     non_x = [s for s in statuses if s != "x"]
@@ -261,9 +224,9 @@ def load_all():
                         fpath = os.path.join(mpath, f"{tslug}.md")
                         if not os.path.isfile(fpath):
                             continue
-                        status, deps = read_task_meta(fpath)
-                        tasks.append({"seq": seq, "slug": tslug, "status": status, "deps": deps,
-                                      "held": bool(other_holder(fpath))})
+                        meta = read_task(fpath)
+                        tasks.append({"seq": seq, "slug": tslug, "status": meta["status"],
+                                      "deps": meta["deps"], "held": meta["held"]})
                     td = sum(1 for t in tasks if t["status"] == "done")
                     tt = sum(1 for t in tasks if t["status"] != "x")
                     ms = "x" if tt == 0 else ("done" if td == tt else ("doing" if td > 0 else "pending"))
@@ -391,21 +354,13 @@ def has_match(item, level, filter_statuses):
 
 
 def render_blocked(projects):
-    """Compact flat list of tasks with unmet deps. No JSON."""
-    done_slugs = set()
-    for proj in projects:
-        for rm in proj["roadmaps"]:
-            for tk in rm["tracks"]:
-                for ms in tk["milestones"]:
-                    for task in ms["tasks"]:
-                        if task["status"] == "done":
-                            done_slugs.add(task["slug"])
-
+    """Compact flat list of tasks with a dependency not DONE in their own milestone. No JSON."""
     blocked = []
     for proj in projects:
         for rm in proj["roadmaps"]:
             for tk in rm["tracks"]:
                 for ms in tk["milestones"]:
+                    done_slugs = {t["slug"] for t in ms["tasks"] if t["status"] == "done"}
                     for task in ms["tasks"]:
                         if task["status"] == "done":
                             continue
@@ -426,6 +381,19 @@ def render_blocked(projects):
     for b in blocked:
         unmet_str = ", ".join(b["unmet"])
         lines.append(f"  {b['project']}  {b['path']}  {b['slug']}  [{b['status']}]  ← {unmet_str}")
+    return "\n".join(lines)
+
+
+def render_next(projects):
+    """One `Next in` line per project from position.project_state, then its problem lines."""
+    lines = []
+    for proj in projects:
+        state = project_state(proj["name"], load_project(proj["name"]))
+        if state["t_key"]:
+            lines.append(f"Next in {proj['name']}: {label(state['t_key'])} · {state['task']['slug']}")
+        else:
+            lines.append(f"Next in {proj['name']}: nothing is ready to start")
+        lines += [f"  {line}" for _, line in state["problems"]]
     return "\n".join(lines)
 
 
@@ -617,6 +585,9 @@ def main():
             hide_types = {s.strip().lower() for s in args.hide.split(",")}
 
         print(render(projects, filter_statuses=filter_statuses, hide_types=hide_types, show_all=args.show_all))
+        if projects:
+            print()
+            print(render_next(projects))
 
     print()
 

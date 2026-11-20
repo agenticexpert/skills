@@ -14,8 +14,8 @@ Match every hierarchy noun the user names — **project, roadmap, track, milesto
 |---|---|---|
 | "the **projects**" | `view_projects.py` | every project, each with its roadmaps table |
 | "the **project**" / "the **roadmaps**" | `view_projects.py <project>` | one project's roadmaps |
-| "the **roadmap**" / "the **tracks**" | `view_tracks.py <project> <roadmap>` | tracks with rollup status and progress count; no milestones shown |
-| "the **track**" / "the **milestones**" | `view_milestones.py <project> <roadmap> <track>` | the primary track view — a Gantt of milestones in sequence; concurrent milestones share a slot; progress bar anchored to slot columns |
+| "the **roadmap**" / "the **tracks**" | `view_tracks.py <project> <roadmap>` | tracks with rollup status and progress count; no milestones shown; roadmap and track references in a band below |
+| "the **track**" / "the **milestones**" | `view_milestones.py <project> <roadmap> <track>` | the primary track view — a Gantt of milestones in sequence; concurrent milestones share a slot; progress bar anchored to slot columns; references in a band below, `┄` under their positions |
 | "the **milestone**" / "the **tasks**" | `view_tasks.py <project> <roadmap> <track> <milestone>` | tasks with status, criteria completion, dependency state |
 | "the **task**" | `Read <root>/<project>/<roadmap>/<track>/<milestone>/<task>.md` | the `.md` file is the source of truth — title, status, deps, criteria, instructions |
 
@@ -36,6 +36,7 @@ python {skills}/scripts/scan.py
 - Match the user's wording against each entry's `title` and `slug`.
 - Carry the full coordinates — project, roadmap, track, milestone, slug — with every match.
 - Cache the result for the session. Re-run after a create, rename, or move. Do not re-run after a status write.
+- The cache matches wording to tasks only. It never answers where the work stands or what is next; those come from a fresh script run.
 
 ---
 
@@ -76,8 +77,8 @@ python {skills}/scripts/view_all.py
 | Question | Command |
 |---|---|
 | What's active right now? | `view_all.py --status doing` — if nothing is DOING, show PENDING next |
-| What's next? | `view_all.py --status pending,ready,doing` — in progress, ready to start, pending; respects the full hierarchy including track-level deps. A row marked `← another session` is that session's, and so is the rest of its milestone: skip both |
-| What's blocked? | `view_all.py --blocked` — compact text: task slug, location, unmet deps |
+| What's next? | `view_all.py` — answer from its `Next in <project>:` line, never from memory of the session. It is derived from the snapshot on every run: sequence, dependencies at every level, statuses, open branches and other sessions' holds. The lines indented under it are contradictions — state each in one line; it names the task it resolves to |
+| What's blocked? | `view_all.py --blocked` — compact text: task slug, location, dependencies not DONE in its milestone |
 | What's hidden / in focus? | any view script with `--all` |
 | Dependency graph | `view_deps.py <project> <roadmap> [<track> [<milestone>]]` — ASCII tree with status char, seq, and slug; more args narrow scope: roadmap → track deps, +track → milestone deps, +milestone → task deps |
 | Where am I / what's in flight? | `view_branches.py [<project>]` — the branch chain from the current position outward, then every other open branch |
@@ -131,7 +132,7 @@ Numbers run sequentially across all three sections. Omit any section with no ite
 
 ## Interpreting Results
 
-Present results plainly. Don't over-narrate. A view ask ("show the tasks", "list all X", "show the milestone") → the reply is the script's output in a code block, exactly as printed, and nothing else. Never retype, rename, reorder, drop a column or add a note or summary. If the user asks "what's next?" give them the next task outside every milestone marked `← another session`, with its milestone/track context — one thing, not a list of options.
+Present results plainly. Don't over-narrate. A view ask ("show the tasks", "list all X", "show the milestone") → the reply is the script's output in a code block, exactly as printed, and nothing else. Never retype, rename, reorder, drop a column or add a note or summary. If the user asks "what's next?" give them the task on `view_all.py`'s `Next in` line, with its milestone/track context — one thing, not a list of options.
 
 If there's nothing DOING and nothing unblocked, surface that directly:
 > "Everything is blocked. The next unblocked item is `{slug}` in `{track}` — but it's waiting on `{dep}`."

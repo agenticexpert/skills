@@ -16,6 +16,7 @@ FM = re.compile(r'\A---[ \t]*\n(.*?)^---[ \t]*$', re.DOTALL | re.MULTILINE)
 TOP = re.compile(r'\s*^#[ \t]+(.+?)[ \t]*$', re.MULTILINE)
 CHECK = re.compile(r'^\s*-\s*\[([ xX])\]\s*(.*)')
 FIXED = ('status', 'updated', 'removed', 'type', 'series', 'when')
+before_save = None
 
 
 class TimelineError(ValueError):
@@ -191,7 +192,10 @@ def listing_problems(table_name, doc, key, present, where):
 
 def save(path, data):
     """Write text, bytes, a copy of a file, or what `data(tmp)` writes, to a temp sibling of `path`
-    with its suffix, then move it into place; returns what `data(tmp)` returned."""
+    with its suffix, then move it into place; returns what `data(tmp)` returned. `before_save`, when set, is
+    called with `path` first."""
+    if before_save:
+        before_save(path)
     tmp = path.with_name(f'.{path.stem}.tmp{path.suffix}')
     try:
         out = None

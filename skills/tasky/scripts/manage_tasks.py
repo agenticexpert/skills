@@ -24,6 +24,7 @@ import argparse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import SESSION, TASKY_ROOT, validate_slug, validate_slash_path
 from claims import describe, milestone_other_holder, other_holder, with_session
+from position import CRITERION_RE, criteria_lines, settle
 
 VALID_STATUSES = {"X", "TODO", "PENDING", "DOING", "PAUSED", "READY", "DONE"}
 
@@ -129,23 +130,6 @@ def read_task_status(task_path):
             if m:
                 return m.group(1).strip()
     return "X"
-
-CRITERION_RE = re.compile(r"^(\s*-\s*\[)([ xX])(\]\s*)(.*)$")
-
-
-def criteria_lines(content):
-    """(line index, checked, text) for each checkbox under ## Criteria."""
-    lines = content.split("\n")
-    out, inside = [], False
-    for i, line in enumerate(lines):
-        if line.startswith("## "):
-            inside = line.strip() == "## Criteria"
-            continue
-        m = CRITERION_RE.match(line) if inside else None
-        if m:
-            out.append((i, m.group(2) != " ", m.group(4).strip()))
-    return out
-
 
 def write_task_status(task_path, new_status):
     with open(task_path) as f:
@@ -261,6 +245,9 @@ def cmd_rename(args):
     oob_order = data["oob_tasks"].get(t_key, [])
     if args.slug in oob_order:
         oob_order[oob_order.index(args.slug)] = args.new_slug
+    for rec in data["branches"].values():
+        if rec.get("origin") == t_key and rec.get("origin_anchor") == args.slug:
+            rec["origin_anchor"] = args.new_slug
     save_project_json(args.project, data)
 
     print(f"Renamed task '{args.slug}' → '{args.new_slug}'")
@@ -400,7 +387,6 @@ def cmd_move(args):
     insert_at = max(1, min(args.insert, limit + 1)) - 1  # 0-based
     order.insert(insert_at, args.slug)
 
-    print("Warning: verify no dependency in this milestone points forward after the move.")
     save_project_json(args.project, data)
     print(f"Moved task '{args.slug}' to position {args.insert}.")
 
@@ -724,6 +710,10 @@ def main():
         cmd_list(args)
     else:
         parser.print_help()
+
+    if args.command not in (None, "list"):
+        settle(args.project, [f"{args.roadmap}/{args.track}/{args.milestone}"]
+               + ([args.dest] if getattr(args, "dest", None) else []))
 
 
 if __name__ == "__main__":

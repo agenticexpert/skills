@@ -16,24 +16,7 @@ from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import TASKY_ROOT
-
-MID_RE = re.compile(r"^branch--[0-9a-f]{8}$")
-
-
-def is_marker(slug):
-    return bool(MID_RE.fullmatch(slug))
-
-
-def split_markers(order, branches=None):
-    """Partition an order array into task slugs and [(mid, after_index)] marker rows."""
-    task_slugs, markers = [], []
-    for slug in order:
-        if is_marker(slug):
-            markers.append((slug, len(task_slugs)))
-        else:
-            task_slugs.append(slug)
-    return task_slugs, markers
-
+from position import split_markers
 
 STATUS_CHAR = {
     "done":    "█",

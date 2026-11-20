@@ -18,6 +18,7 @@ import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import TASKY_ROOT
+from position import load_project, project_state
 
 STATUS_ORDER = ["X", "TODO", "PENDING", "DOING", "PAUSED", "READY", "DONE"]
 
@@ -467,31 +468,35 @@ def filter_by_status(projects, status):
 
 
 def find_next(projects):
-    """Return the first unblocked TODO/PENDING task in sequence order."""
+    """The task position.project_state puts "next" on, in the first project that has one,
+    with the project's contradiction lines."""
     flat = all_tasks(projects)
-    done_slugs = {t["task"]["slug"] for t in flat if t["task"]["status"].upper() == "DONE"}
-
-    for entry in flat:
-        task = entry["task"]
-        if task["status"].upper() not in ("TODO", "PENDING"):
+    for project in projects:
+        state = project_state(project["slug"], load_project(project["slug"]))
+        if not state["t_key"]:
             continue
-        deps_met = all(dep in done_slugs for dep in task["dependencies"])
-        if deps_met:
-            return entry
+        place = (project["slug"], *state["t_key"].split("/"), state["task"]["slug"])
+        for entry in flat:
+            if (entry["project"], entry["roadmap"], entry["track"], entry["milestone"], entry["task"]["slug"]) == place:
+                return {**entry, "problems": [line for _, line in state["problems"]]}
     return None
 
 
 def find_blocked(projects):
-    """Return tasks with unmet dependencies."""
+    """Return tasks with a dependency not DONE in their own milestone."""
     flat = all_tasks(projects)
-    done_slugs = {t["task"]["slug"] for t in flat if t["task"]["status"].upper() == "DONE"}
+    place = lambda e: (e["project"], e["roadmap"], e["track"], e["milestone"])
+    done = {}
+    for entry in flat:
+        if entry["task"]["status"].upper() == "DONE":
+            done.setdefault(place(entry), set()).add(entry["task"]["slug"])
 
     blocked = []
     for entry in flat:
         task = entry["task"]
         if task["status"].upper() == "DONE":
             continue
-        unmet = [dep for dep in task["dependencies"] if dep not in done_slugs]
+        unmet = [dep for dep in task["dependencies"] if dep not in done.get(place(entry), set())]
         if unmet:
             blocked.append({**entry, "unmet_deps": unmet})
     return blocked

@@ -25,7 +25,8 @@ agents/storypad/stories/
     │   ├── scenes/<key>.md     one file per scene, named in the scene table's File column
     │   ├── assets/             the files its takes, layers and own pins keep
     │   ├── script.md           written by compile
-    │   └── cut.mp4             written by cut, a rough cut
+    │   ├── cut.mp4             written by cut, a rough cut
+    │   └── versions/           each earlier state of its text files; a series and the world keep their own
     └── <series>/
         ├── series.md           premise and episode arc: the order the audience watches
         └── ep-<key>/           one story folder per episode, named in the arc's Folder column
@@ -181,6 +182,8 @@ scene named like one of them with its beats.
 | "That's right", "approved", naming a record | `asset\|location set <story> <name> --state approved` |
 | "Use the capture for 2a from 0:04" | `storypad.py take add <story> 2a --file @<name> --in 4` |
 | Compile the script | `storypad.py compile <story>`; name the scenes still without script |
+| See, compare or go back to an earlier version; "undo that" | `storypad.py version list <story>`, then `version diff <story> <ref>` or `version restore <story> <ref>`; threads, events, assets, locations and moments: the same on `<world>` |
+| "Save this as v6" after a film | `storypad.py version save <story> v6 --film <film> [--note "<text>"]` |
 | List stories | `storypad.py list`: each world with its stories |
 | Open a story | Read its `index.md` and its world's `world.md`, and `series.md` for an episode, then `show` it |
 

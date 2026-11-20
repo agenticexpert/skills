@@ -21,6 +21,7 @@ import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import TASKY_ROOT, validate_slug
+from position import settle
 
 
 # ---------------------------------------------------------------------------
@@ -321,7 +322,6 @@ def cmd_move(args):
     insert_at = max(1, min(args.insert, len(src_order) + 1)) - 1
     src_order.insert(insert_at, args.slug)
 
-    print("Warning: verify no dependency in this roadmap points forward after the move.")
     save_project_json(args.project, data)
     print(f"Moved track '{args.slug}' to position {args.insert} in roadmap '{args.roadmap}'.")
 
@@ -545,6 +545,9 @@ def main():
         cmd_unhide(args)
     else:
         parser.print_help()
+
+    if args.command not in (None, "list", "hide", "unhide"):
+        settle(args.project, [args.roadmap] + ([args.dest] if getattr(args, "dest", None) else []))
 
 
 if __name__ == "__main__":

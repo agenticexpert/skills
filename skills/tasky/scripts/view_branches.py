@@ -18,8 +18,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import TASKY_ROOT
-
-MID_RE = re.compile(r"^branch--[0-9a-f]{8}$")
+from position import current_position, split_markers
 
 HOP_CAP = 64
 ALSO_LIMIT = 10
@@ -46,21 +45,6 @@ def load_project_json(project):
     data.setdefault("milestone_deps", {})
     data.setdefault("branches", {})
     return data
-
-
-def is_marker(slug):
-    return bool(MID_RE.fullmatch(slug))
-
-
-def split_markers(order, branches=None):
-    """Partition an order array into task slugs and [(mid, after_index)] marker rows."""
-    task_slugs, markers = [], []
-    for slug in order:
-        if is_marker(slug):
-            markers.append((slug, len(task_slugs)))
-        else:
-            task_slugs.append(slug)
-    return task_slugs, markers
 
 
 # ---------------------------------------------------------------------------
@@ -120,22 +104,6 @@ def anchor_ref(project, data, rec, cache):
 # Chain
 # ---------------------------------------------------------------------------
 
-def current_position(project, data, cache):
-    for t_key in data["tasks"]:
-        _, _, statuses, slugs = milestone_facts(project, data, t_key, cache)
-        for slug in slugs:
-            if statuses.get(slug) == "doing":
-                return t_key
-    newest = None
-    for order, rec in enumerate(data["branches"].values()):
-        if rec.get("state") != "open":
-            continue
-        key = (rec.get("opened", ""), order)
-        if newest is None or key >= newest[0]:
-            newest = (key, rec)
-    return newest[1]["destination"] if newest else None
-
-
 def build_chain(data, position):
     """[(t_key, record-that-returns-out-of-it or None)], innermost first."""
     chain, seen = [], set()
@@ -164,7 +132,7 @@ def render(project, data, cache):
     if not open_records:
         return "no branch in flight"
 
-    position = current_position(project, data, cache)
+    position = current_position(project, data)
     if position is None:
         return "no branch in flight"
 

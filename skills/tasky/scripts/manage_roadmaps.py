@@ -20,6 +20,7 @@ import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import TASKY_ROOT, validate_slug
+from position import settle
 
 
 # ---------------------------------------------------------------------------
@@ -251,6 +252,8 @@ def cmd_move(args):
     src_tasks        = {k: v for k, v in src_data["tasks"].items()           if k.startswith(prefix)}
     src_oob_tasks    = {k: v for k, v in src_data["oob_tasks"].items()       if k.startswith(prefix)}
     src_ms_deps      = {k: v for k, v in src_data["milestone_deps"].items()  if k.startswith(prefix)}
+    src_branches     = {k: v for k, v in src_data.get("branches", {}).items()
+                        if v.get("origin", "").startswith(prefix) and v.get("destination", "").startswith(prefix)}
 
     shutil.move(src_rmap_path, dst_rmap_path)
 
@@ -290,6 +293,9 @@ def cmd_move(args):
     dst_data["tasks"].update(src_tasks)
     dst_data["oob_tasks"].update(src_oob_tasks)
     dst_data["milestone_deps"].update(src_ms_deps)
+    for mid in src_branches:
+        src_data["branches"].pop(mid)
+    dst_data.setdefault("branches", {}).update(src_branches)
 
     save_project_json(src_project, src_data)
     save_project_json(dest_project, dst_data)
@@ -426,6 +432,12 @@ def main():
         cmd_list(args)
     else:
         parser.print_help()
+
+    if args.command in ("rename", "delete"):
+        settle(args.project, [args.new_slug if args.command == "rename" else args.slug])
+    elif args.command == "move":
+        settle(args.project, [args.roadmap])
+        settle(args.dest, [args.roadmap])
 
 
 if __name__ == "__main__":

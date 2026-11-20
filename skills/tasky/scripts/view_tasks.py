@@ -20,30 +20,13 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import TASKY_ROOT
 from claims import other_holder
+from position import milestone_state, split_markers, tasks_in
 
 COL_SEQ    = 3
 COL_STATUS = 7
 MAX_TITLE  = 52
 
 HELD_MARK  = "  ← another session"
-
-MID_RE = re.compile(r"^branch--[0-9a-f]{8}$")
-
-
-def is_marker(slug):
-    return bool(MID_RE.fullmatch(slug))
-
-
-def split_markers(order, branches=None):
-    """Partition an order array into task slugs and [(mid, after_index)] marker rows."""
-    task_slugs, markers = [], []
-    for slug in order:
-        if is_marker(slug):
-            markers.append((slug, len(task_slugs)))
-        else:
-            task_slugs.append(slug)
-    return task_slugs, markers
-
 
 # ---------------------------------------------------------------------------
 # project.json helpers
@@ -149,20 +132,6 @@ def compute_status(tasks):
 
 
 # ---------------------------------------------------------------------------
-# Next unblocked
-# ---------------------------------------------------------------------------
-
-def find_next(tasks):
-    done_slugs = {t["slug"] for t in tasks if t["status"] == "done"}
-    for t in tasks:
-        if t["status"] not in ("paused", "todo", "pending"):
-            continue
-        if all(dep in done_slugs for dep in t["deps"]):
-            return t["seq"]
-    return None
-
-
-# ---------------------------------------------------------------------------
 # Rendering
 # ---------------------------------------------------------------------------
 
@@ -200,7 +169,9 @@ def branch_label(t_key):
 
 
 def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None,
-           branches=None, t_key=None):
+           branches=None, t_key=None, pointer=None, problems=()):
+    """pointer is the slug "next" lands on and problems the contradiction lines, both
+    from position.milestone_state."""
     if oob_tasks is None:
         oob_tasks = []
     branches = branches or {}
@@ -214,7 +185,7 @@ def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None
     done  = sum(1 for t in tasks + oob_tasks if t["status"] == "done")
     total = sum(1 for t in tasks + oob_tasks if t["status"] != "x")
     held = any(t["held"] for t in tasks + oob_tasks)
-    next_seq = None if held else find_next(tasks)
+    next_seq = next((t["seq"] for t in tasks if t["slug"] == pointer), None)
 
     all_for_cols   = tasks + oob_tasks
     dep_lists      = [dep_lines(t["deps"]) for t in all_for_cols]
@@ -314,6 +285,7 @@ def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None
             out.append("Next unblocked: none (all remaining tasks are blocked)")
         else:
             out.append("All tasks complete.")
+    out.extend(problems)
 
     return "\n".join(out)
 
@@ -344,7 +316,9 @@ def main():
     oob_slugs = sorted(oob_plain)
     oob_tasks = load_tasks(milestone_dir, oob_slugs) if oob_slugs else []
     oob_tasks.sort(key=lambda t: (t["status"] != "done", t["status"] == "x"))
-    print(render(milestone, tasks, oob_tasks, markers, oob_markers, data["branches"], t_key))
+    pointer, problems = milestone_state(tasks_in(project, data, t_key), f"{track}/{milestone}")
+    print(render(milestone, tasks, oob_tasks, markers, oob_markers, data["branches"], t_key,
+                 pointer["slug"] if pointer else None, problems))
 
 
 if __name__ == "__main__":
