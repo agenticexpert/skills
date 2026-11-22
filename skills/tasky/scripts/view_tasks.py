@@ -20,7 +20,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import TASKY_ROOT
 from claims import other_holder
-from position import milestone_state, split_markers, tasks_in
+from position import destination_progress, progress, sequence_state, split_markers
 
 COL_SEQ    = 3
 COL_STATUS = 7
@@ -142,7 +142,7 @@ def dep_lines(deps):
 
 
 def marker_lines(markers, branches, t_key, oob):
-    """Split [(mid, after_index)] into inline open-marker lines and the closing line."""
+    """Split [(mid, after_index)] into inline {after_index: [(mid, destination)]} rows and the closing line."""
     inline, closing = {}, None
     for mid, after in markers:
         rec = branches.get(mid)
@@ -156,10 +156,7 @@ def marker_lines(markers, branches, t_key, oob):
                 + (f" · {rec['origin_anchor']}" if rec.get("origin_anchor") else ""),
             )
         else:
-            inline.setdefault(after, []).append(
-                "↑".rjust(COL_SEQ) + "  to " + branch_label(rec.get("destination", ""))
-                + " · " + rec.get("state", "open")
-            )
+            inline.setdefault(after, []).append((mid, rec.get("destination", "")))
     return inline, closing
 
 
@@ -169,12 +166,16 @@ def branch_label(t_key):
 
 
 def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None,
-           branches=None, t_key=None, pointer=None, problems=()):
-    """pointer is the slug "next" lands on and problems the contradiction lines, both
-    from position.milestone_state."""
+           branches=None, t_key=None, place=None, problems=(), dest_progress=None):
+    """place is where "next" lands and problems the contradiction lines, both from
+    position.sequence_state, place carrying the task's "seq" and "title" for the footer;
+    dest_progress maps a marker row to its destination's (status, done, total)."""
     if oob_tasks is None:
         oob_tasks = []
     branches = branches or {}
+    dest_progress = dest_progress or {}
+    place = place or {}
+    pointer = place["task"]["slug"] if place and place["mid"] is None else None
     inline, closing = marker_lines(markers or [], branches, t_key, False)
     oob_inline, oob_closing = marker_lines(oob_markers or [], branches, t_key, True)
 
@@ -182,8 +183,7 @@ def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None
         return f"{milestone_name}\n(no tasks)"
 
     ms_status = compute_status(tasks)
-    done  = sum(1 for t in tasks + oob_tasks if t["status"] == "done")
-    total = sum(1 for t in tasks + oob_tasks if t["status"] != "x")
+    _, done, total = progress(tasks + oob_tasks)
     held = any(t["held"] for t in tasks + oob_tasks)
     next_seq = next((t["seq"] for t in tasks if t["slug"] == pointer), None)
 
@@ -215,8 +215,17 @@ def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None
 
     out = [ms_line, sep, col_hdr]
 
-    for line in inline.get(0, []):
-        out.append(" " + line)
+    def marker_row(mid, dest):
+        status, mdone, mtotal = dest_progress.get(mid, ("todo", 0, 0))
+        to = "to " + branch_label(dest)
+        mark = ""
+        if place.get("mid") == mid:
+            mark = "  ← doing" if place["doing"] else "  ← next"
+        return (" " + "↑".rjust(COL_SEQ) + "  " + to.ljust(max(col_title + col_deps, len(to) + 2))
+                + f"{status} · {mdone}/{mtotal}" + mark)
+
+    for mid, dest in inline.get(0, []):
+        out.append(marker_row(mid, dest))
 
     for t, deps in zip(tasks, seq_dep_lists):
         title = t["title"]
@@ -240,8 +249,8 @@ def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None
                 " " * col_title +
                 d.ljust(col_deps)
             )
-        for line in inline.get(t["seq"], []):
-            out.append(" " + line)
+        for mid, dest in inline.get(t["seq"], []):
+            out.append(marker_row(mid, dest))
 
     if closing:
         out.append(" " + closing[1])
@@ -267,8 +276,8 @@ def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None
                     " " * col_title +
                     d.ljust(col_deps)
                 )
-        for line in [l for lines in oob_inline.values() for l in lines]:
-            out.append(" " + line)
+        for mid, dest in [row for rows in oob_inline.values() for row in rows]:
+            out.append(marker_row(mid, dest))
         if oob_closing:
             out.append(" " + oob_closing[1])
 
@@ -276,6 +285,11 @@ def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None
 
     if held:
         out.append("Next unblocked: none — another session holds this milestone")
+    elif place.get("mid"):
+        dest = branches[place["mid"]]["destination"]
+        inside = "" if place["t_key"] == dest else f" in {branch_label(place['t_key'])}"
+        out.append(f"Next unblocked: ↑ to {branch_label(dest)} — "
+                   f"{place['seq']} — {place['title']}{inside}")
     elif next_seq:
         nt = next(t for t in tasks if t["seq"] == next_seq)
         out.append(f"Next unblocked: {next_seq} — {nt['title']}")
@@ -316,9 +330,18 @@ def main():
     oob_slugs = sorted(oob_plain)
     oob_tasks = load_tasks(milestone_dir, oob_slugs) if oob_slugs else []
     oob_tasks.sort(key=lambda t: (t["status"] != "done", t["status"] == "x"))
-    pointer, problems = milestone_state(tasks_in(project, data, t_key), f"{track}/{milestone}")
+    place, problems = sequence_state(project, data, t_key)
+    if place and place["mid"]:
+        slug = place["task"]["slug"]
+        held_in = data["oob_tasks" if place["oob"] else "tasks"].get(place["t_key"], [])
+        slugs, _ = split_markers(held_in)
+        place["seq"] = "·" if place["oob"] or slug not in slugs else slugs.index(slug) + 1
+        title = parse_task_file(os.path.join(TASKY_ROOT, project, *place["t_key"].split("/"), f"{slug}.md"))[0]
+        place["title"] = title or slug
+    dest_progress = {mid: destination_progress(project, data, data["branches"][mid]["destination"])
+                     for mid, _ in markers + oob_markers if mid in data["branches"]}
     print(render(milestone, tasks, oob_tasks, markers, oob_markers, data["branches"], t_key,
-                 pointer["slug"] if pointer else None, problems))
+                 place, problems, dest_progress=dest_progress))
 
 
 if __name__ == "__main__":

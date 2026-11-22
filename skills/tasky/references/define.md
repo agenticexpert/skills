@@ -90,7 +90,7 @@ Ask only what's needed to reach the target detail level:
 
 **To make it Workable:**
 - What does this task produce or change?
-- How will you know it's done? (surfaces Criteria)
+- What are its steps, in order? (each becomes a Criteria box)
 - Is there anything it should explicitly not do?
 
 **To make it Detailed:**
@@ -108,7 +108,12 @@ Fill in only what's needed. Leave sections blank if they add no value.
 
 - **Description** — what this task is. 1-2 sentences.
 - **Goal** — the outcome. One clear sentence: "Produces X" or "Enables Y."
-- **Criteria** — verifiable items. If Task is empty, Criteria is both the instruction and the gate. Write tight, checkable items — "Passes test X" beats "works correctly." Write the fewest items that prove the goal is met. Each item traces to something the user, the goal, a spec, the milestone or a standard the project follows asks for; cut an item whose removal leaves the goal still proven. A criterion the user checks by hand must be checkable the moment the task's own work lands — every screen, command and file it needs exists by then. If it waits on a later task, it belongs in that task.
+- **Criteria** — verifiable items. If Task is empty, Criteria is both the instruction and the gate. A task is one piece of work with one result; it usually takes several steps. Write each step as one checkbox, in the order the work goes, ticked as the work goes. Write tight, checkable items — "Passes test X" beats "works correctly." Each item traces to something the user, the goal, a spec, the milestone or a standard the project follows asks for.
+  - When a box has its own result and could be started, finished or reviewed apart from the rest: make it its own task.
+  - When a box names a whole family ("each kind of X", "every rule in Y"): it is several tasks; make each its own task.
+  - When a box is an outcome check standing in for the steps ("it works on the 6502"): replace it with the steps.
+  - When a box or task can't be done without another task's work, or repeats part of it: it is a step of that task; fold it in as a box there.
+  - A criterion the user checks by hand must be checkable the moment the task's own work lands — every screen, command and file it needs exists by then. If it waits on a later task, it belongs in that task.
 - **References** — only paths that will actually be read during execution, and every file any line of the task cites or draws a fact from.
 - **Task** — the instruction in impact/execution form. What to do and what it achieves — not background. If populated, Criteria becomes the acceptance gate only.
 

@@ -24,7 +24,7 @@ The user wants to work a task. Identify which task, load it, do the work, update
 
 **Selecting the Next Task** — both "next" cases select this way:
 1. In a milestone that is a branch destination, run the return check in `branch.md` → **Returning** first. A resolved hop names where to go; nothing resolved means stay here.
-2. Run `view_tasks.py` on the milestone now and take the task it marks `← next`; across milestones, take the task `scan.py --next` returns. Never carry a pointer from earlier in the session: a task moved, inserted or re-statused since lands the pointer elsewhere, and the script already accounts for it.
+2. Run `view_tasks.py` on the milestone now and take the task it marks `← next`; when a `↑` branch row carries `← next` or `← doing`, take the task its `Next unblocked:` line names inside that destination; across milestones, take the task `scan.py --next` returns. Never carry a pointer from earlier in the session: a task moved, inserted or re-statused since lands the pointer elsewhere, and the script already accounts for it.
 3. The view prints a line under the table for each contradiction (a DOING task with every criterion checked, two DOING at once, a task above its dependency) → state it to the user in one line and take the task that line names.
 4. No task is marked → nothing there is ready; take the first unmarked milestone in sequence the same way. A milestone marked `← another session` holds none for you.
 5. That task is `todo` (undefined stub) → define it inline from milestone context — the content bar is define.md → **Detail Levels** and **Writing the Task File**, the status flip to `pending` is define.md → **Exit** — then execute. State what you wrote.

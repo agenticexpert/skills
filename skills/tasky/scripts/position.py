@@ -123,9 +123,24 @@ def tasks_in(project, data, t_key, oob=False, stop=None):
     return out
 
 
-def is_done(tasks):
+def progress(tasks):
+    """(status, done, total) of a milestone's tasks, a task with no status not counted:
+    done when every counted task is DONE, todo while each is TODO, PENDING or PAUSED,
+    else doing."""
     counted = [t for t in tasks if t["status"] != "x"]
-    return bool(counted) and all(t["status"] == "done" for t in counted)
+    done = sum(1 for t in counted if t["status"] == "done")
+    if counted and done == len(counted):
+        return "done", done, len(counted)
+    return ("todo" if all(t["status"] in OPEN for t in counted) else "doing"), done, len(counted)
+
+
+def is_done(tasks):
+    return progress(tasks)[0] == "done"
+
+
+def destination_progress(project, data, t_key):
+    """progress() of a whole milestone, its out-of-band tasks counted."""
+    return progress(tasks_in(project, data, t_key) + tasks_in(project, data, t_key, oob=True))
 
 
 def milestone_state(tasks, where):
@@ -161,12 +176,49 @@ def milestone_state(tasks, where):
     return pointer, [f"In {where}, {line}; {then}." for line in found]
 
 
+def sequence_state(project, data, t_key, oob=False, stop=None, seen=()):
+    """(place or None, contradiction lines) for one milestone, its marker rows in sequence.
+
+    A marker row leading out of the milestone stands in sequence for its destination
+    while that destination is unfinished and has a place of its own. The place is the
+    first DOING item from the top, else the first open one: {"t_key", "task", "oob",
+    "mid", "doing"}, t_key the milestone holding the task and mid the marker row it sits
+    behind, None for the milestone's own task. None while another session holds a task
+    here. The lines are this milestone's only."""
+    tasks = tasks_in(project, data, t_key, oob, stop)
+    pointer, problems = milestone_state(tasks, label(t_key))
+    if any(t["held"] for t in tasks):
+        return None, problems
+    order = list(data["oob_tasks" if oob else "tasks"].get(t_key, []))
+    if stop in order:
+        order = order[:order.index(stop)]
+    items = []
+    if pointer:
+        at = order.index(pointer["slug"]) if pointer["slug"] in order else 0
+        items.append((at, {"t_key": t_key, "task": pointer, "oob": oob, "mid": None,
+                           "doing": pointer["status"] == "doing"}))
+    for at, mid in enumerate(order):
+        rec = data["branches"].get(mid) if is_marker(mid) else None
+        dest = rec.get("destination") if rec else None
+        if not dest or dest == t_key or dest in seen or len(seen) >= HOP_CAP:
+            continue
+        if destination_progress(project, data, dest)[0] == "done":
+            continue
+        inner, _ = sequence_state(project, data, dest, rec.get("oob", False), mid, seen + (t_key,))
+        if inner:
+            items.append((at, dict(inner, mid=mid)))
+    doing = [item for item in items if item[1]["doing"]]
+    pick = min(doing or items, key=lambda item: item[0], default=None)
+    return (pick[1] if pick else None), problems
+
+
 def track_state(project, data, roadmap, track):
     """The current milestone of one track: {t_key, task, doing, problems, done}.
 
     `doing` lists every milestone (sequenced or out of band) whose pointer is a DOING
-    task; the current milestone is the first of them, else the first sequenced milestone
-    from the top with a pointer and every milestone dependency done. `problems` holds
+    task; the current milestone is the first of them, else the sequence_state place of the
+    first sequenced milestone from the top with one and every milestone dependency done,
+    which is a branch destination when a marker row there leads the sequence. `problems` holds
     (t_key, line) pairs."""
     m_key = f"{roadmap}/{track}"
     oob = data["oob_milestones"].get(m_key, [])
@@ -184,11 +236,12 @@ def track_state(project, data, roadmap, track):
         if pointer and pointer["status"] == "doing":
             doing.append((t_key, pointer))
         if slug in sequenced:
-            states.append((slug, t_key, pointer))
+            place = sequence_state(project, data, t_key)[0]
+            states.append((slug, t_key, (place["t_key"], place["task"]) if place else None))
 
     position = {slug: i for i, slug in enumerate(sequenced)}
     current = doing[0] if doing else None
-    for slug, t_key, pointer in states:
+    for slug, t_key, at in states:
         deps = data["milestone_deps"].get(t_key, [])
         for dep in deps:
             if dep not in position:
@@ -198,8 +251,8 @@ def track_state(project, data, roadmap, track):
             else:
                 continue
             problems.append((m_key, line))
-        if current is None and pointer and all(d in finished for d in deps):
-            current = (t_key, pointer)
+        if current is None and at and all(d in finished for d in deps):
+            current = at
 
     where = f"the current milestone is `{label(current[0])}`" if current else "no milestone is ready to start"
     problems = [(key, line if key != m_key else f"In {track}, {line}; {where}.") for key, line in problems]
@@ -312,14 +365,15 @@ def branch_next(project, data):
         return None
     hops, _ = return_walk(project, data, start)
     if not hops:
-        tasks = tasks_in(project, data, start, rec.get("oob", False), stop=rec["id"])
-        pointer, _ = milestone_state(tasks, label(start))
-        return (start, pointer) if pointer else None
+        place = sequence_state(project, data, start, rec.get("oob", False), rec["id"])[0]
+        return (place["t_key"], place["task"]) if place else None
     last, anchor = hops[-1]
-    tasks = tasks_in(project, data, last["origin"])
-    held = next((t for t in tasks if t["slug"] == anchor and t["status"] in WORKABLE), None)
-    pointer = held or milestone_state(tasks, label(last["origin"]))[0]
-    return (last["origin"], pointer) if pointer else None
+    held = next((t for t in tasks_in(project, data, last["origin"])
+                 if t["slug"] == anchor and t["status"] in WORKABLE), None)
+    if held:
+        return last["origin"], held
+    place = sequence_state(project, data, last["origin"])[0]
+    return (place["t_key"], place["task"]) if place else None
 
 
 def trailing_match(a, b):
