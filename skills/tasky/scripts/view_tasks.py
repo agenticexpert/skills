@@ -8,6 +8,7 @@ Usage:
 Output:
     Milestone name + status · done/total header
     Column-aligned task table with seq (1..n) and ← next marker
+    References of the roadmap, the track and the milestone, below the tasks
     Footer: next unblocked task
 """
 
@@ -21,6 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import TASKY_ROOT
 from claims import other_holder
 from position import destination_progress, progress, sequence_state, split_markers
+import refs
 
 COL_SEQ    = 3
 COL_STATUS = 7
@@ -166,7 +168,7 @@ def branch_label(t_key):
 
 
 def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None,
-           branches=None, t_key=None, place=None, problems=(), dest_progress=None):
+           branches=None, t_key=None, place=None, problems=(), references=(), dest_progress=None):
     """place is where "next" lands and problems the contradiction lines, both from
     position.sequence_state, place carrying the task's "seq" and "title" for the footer;
     dest_progress maps a marker row to its destination's (status, done, total)."""
@@ -281,6 +283,10 @@ def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None
         if oob_closing:
             out.append(" " + oob_closing[1])
 
+    if references:
+        out.append(sep)
+        out.extend(refs.path_lines(references))
+
     out.append(sep)
 
     if held:
@@ -340,8 +346,9 @@ def main():
         place["title"] = title or slug
     dest_progress = {mid: destination_progress(project, data, data["branches"][mid]["destination"])
                      for mid, _ in markers + oob_markers if mid in data["branches"]}
+    references = refs.band(os.path.join(TASKY_ROOT, project, roadmap), [track], [(track, milestone)])
     print(render(milestone, tasks, oob_tasks, markers, oob_markers, data["branches"], t_key,
-                 place, problems, dest_progress=dest_progress))
+                 place, problems, references, dest_progress=dest_progress))
 
 
 if __name__ == "__main__":

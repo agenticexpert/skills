@@ -300,7 +300,7 @@ python {skills}/scripts/manage_refs.py remove <project> <roadmap> <name>
 - `--slots` → the milestone view draws `┄` under those positions; without it the cells stay blank.
 - `<name>` is a slug, unique within the roadmap. `<path>` is stored as given: a repo-relative path or a URL.
 - A reference is stored in its owner's directory, in `.references.json` (`{"name", "path", "slots"?}`), never in `project.json`. Renaming or moving the roadmap, track or milestone carries its references; deleting it removes them.
-- Views show references in their own band below the out-of-band rows, labelled `§`, with each path listed under the legend. The track view shows roadmap and track references; the milestone view shows all of them, or with a track filter that track's and the roadmap's.
+- Views show references in their own band below the out-of-band rows, labelled `§`, with each path listed under the legend. The track view shows roadmap and track references; the milestone view shows all of them, or with a track filter that track's and the roadmap's; the task list shows the roadmap's, its track's and its milestone's, below the tasks.
 
 ---
 
