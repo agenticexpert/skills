@@ -9,7 +9,6 @@ Output:
     Milestone name + status · done/total header
     Column-aligned task table with seq (1..n) and ← next marker
     References of the roadmap, the track and the milestone, below the tasks
-    Footer: next unblocked task
 """
 
 import os
@@ -170,8 +169,7 @@ def branch_label(t_key):
 def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None,
            branches=None, t_key=None, place=None, problems=(), references=(), dest_progress=None):
     """place is where "next" lands and problems the contradiction lines, both from
-    position.sequence_state, place carrying the task's "seq" and "title" for the footer;
-    dest_progress maps a marker row to its destination's (status, done, total)."""
+    position.sequence_state; dest_progress maps a marker row to its destination's (status, done, total)."""
     if oob_tasks is None:
         oob_tasks = []
     branches = branches or {}
@@ -186,7 +184,6 @@ def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None
 
     ms_status = compute_status(tasks)
     _, done, total = progress(tasks + oob_tasks)
-    held = any(t["held"] for t in tasks + oob_tasks)
     next_seq = next((t["seq"] for t in tasks if t["slug"] == pointer), None)
 
     all_for_cols   = tasks + oob_tasks
@@ -223,7 +220,7 @@ def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None
         mark = ""
         if place.get("mid") == mid:
             mark = "  ← doing" if place["doing"] else "  ← next"
-        return (" " + "↑".rjust(COL_SEQ) + "  " + to.ljust(max(col_title + col_deps, len(to) + 2))
+        return (" " + "⤷".rjust(COL_SEQ) + "  " + to.ljust(max(col_title + col_deps, len(to) + 2))
                 + f"{status} · {mdone}/{mtotal}" + mark)
 
     for mid, dest in inline.get(0, []):
@@ -287,22 +284,6 @@ def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None
 
     out.append(sep)
 
-    if held:
-        out.append("Next unblocked: none — another session holds this milestone")
-    elif place.get("mid"):
-        dest = branches[place["mid"]]["destination"]
-        inside = "" if place["t_key"] == dest else f" in {branch_label(place['t_key'])}"
-        out.append(f"Next unblocked: ↑ to {branch_label(dest)} — "
-                   f"{place['seq']} — {place['title']}{inside}")
-    elif next_seq:
-        nt = next(t for t in tasks if t["seq"] == next_seq)
-        out.append(f"Next unblocked: {next_seq} — {nt['title']}")
-    else:
-        remaining = [t for t in tasks if t["status"] not in ("done", "ready")]
-        if remaining:
-            out.append("Next unblocked: none (all remaining tasks are blocked)")
-        else:
-            out.append("All tasks complete.")
     out.extend(problems)
 
     return "\n".join(out)
@@ -335,13 +316,6 @@ def main():
     oob_tasks = load_tasks(milestone_dir, oob_slugs) if oob_slugs else []
     oob_tasks.sort(key=lambda t: (t["status"] != "done", t["status"] == "x"))
     place, problems = sequence_state(project, data, t_key)
-    if place and place["mid"]:
-        slug = place["task"]["slug"]
-        held_in = data["oob_tasks" if place["oob"] else "tasks"].get(place["t_key"], [])
-        slugs, _ = split_markers(held_in)
-        place["seq"] = "·" if place["oob"] or slug not in slugs else slugs.index(slug) + 1
-        title = parse_task_file(os.path.join(TASKY_ROOT, project, *place["t_key"].split("/"), f"{slug}.md"))[0]
-        place["title"] = title or slug
     dest_progress = {mid: destination_progress(project, data, data["branches"][mid]["destination"])
                      for mid, _ in markers + oob_markers if mid in data["branches"]}
     references = refs.band(os.path.join(TASKY_ROOT, project, roadmap), [track], [(track, milestone)])
