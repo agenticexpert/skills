@@ -234,8 +234,6 @@ def render(milestone_name, tasks, oob_tasks=None, markers=None, oob_markers=None
         if len(title) > MAX_TITLE:
             title = title[:MAX_TITLE - 3] + "..."
         marker = HELD_MARK if t["held"] else ("  ← next" if t["seq"] == next_seq else "")
-        if not marker and closing and t["seq"] == closing[0]:
-            marker = "  ← new task inserts here"
         out.append(
             " " +
             str(t["seq"]).rjust(COL_SEQ) + "  " +
