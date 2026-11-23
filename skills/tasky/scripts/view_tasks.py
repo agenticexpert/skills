@@ -152,7 +152,7 @@ def marker_lines(markers, branches, t_key, oob):
         if rec.get("destination") == t_key and bool(rec.get("oob")) == bool(oob):
             closing = (
                 after,
-                "⤶".rjust(COL_SEQ) + "  end of branch → back to "
+                "⤶".rjust(COL_SEQ) + "  back to "
                 + branch_label(rec.get("origin", ""))
                 + (f" · {rec['origin_anchor']}" if rec.get("origin_anchor") else ""),
             )
