@@ -91,14 +91,24 @@ SENT_BACK = re.compile(r'Stop hook feedback:\s*(REPORT REVIEW|REPORT FORM VIOLAT
 MAX_SEND_BACKS = 2  # after two send-backs in a turn, the reply reaches the user
 
 
+# A status this turn set on a task, by any shell.
+SET_STATUS = re.compile(r'manage_tasks\.py["\']?\s+set-status\b[^\n]*?\s(todo|pending|doing|ready|paused|done)\b')
+
+
+def set_statuses(block):
+    if not isinstance(block, dict) or block.get('type') != 'tool_use' or block.get('name') not in SHELL_TOOLS:
+        return set()
+    return set(SET_STATUS.findall(str((block.get('input') or {}).get('command', ''))))
+
+
 def transcript_tail(path):
     # Returns (newest assistant reply, newest user message, the command that ended a task this
     # turn, whether this turn changed tasks, this hook's send-backs this turn, whether a review
-    # was asked for after the task ended).
+    # was asked for after the task ended, the statuses this turn set).
     try:
         lines = open(path, encoding='utf-8').read().splitlines()
     except OSError:
-        return '', '', '', False, 0, False
+        return '', '', '', False, 0, False, set()
 
     def text_of(entry):
         blocks = entry.get('message', {}).get('content', [])
@@ -113,6 +123,7 @@ def transcript_tail(path):
     ended = ''
     worked = reviewed = False
     sent = 0
+    set_now = set()
     for line in reversed(lines):
         try:
             entry = json.loads(line)
@@ -128,6 +139,7 @@ def transcript_tail(path):
             if isinstance(blocks, list):
                 ended = next((c for c in map(ending_command, blocks) if c), ended)
                 worked = worked or any(map(changes_tasks, blocks))
+                set_now.update(*map(set_statuses, blocks))
         elif kind == 'user' and entry.get('isMeta'):
             back = SENT_BACK.match(text_of(entry))
             if back:
@@ -139,7 +151,7 @@ def transcript_tail(path):
             if text.strip():
                 prompt = text
                 break
-    return reply, prompt, ended, worked, sent, reviewed
+    return reply, prompt, ended, worked, sent, reviewed, set_now
 
 
 def strip_code(text):
@@ -218,6 +230,9 @@ def form_violation(body):
                 return "the user's step under THEN: — it shows once the running work ends", stripped[:60]
             fact = stripped[head.end():].strip()
             section = head.group(1)
+        elif CHECK_ROW.match(stripped):
+            section = 'CHECKLIST'
+            continue
         elif stripped.startswith('- '):
             if section == 'THEN' and stripped.startswith('- You:'):
                 return "the user's step under THEN: — it shows once the running work ends", stripped[:60]
@@ -238,17 +253,126 @@ def form_violation(body):
     return None
 
 
-def violation(reply, prompt, ended=False, handback=False):
+# The checklist under STATUS: where this report's tasks stand, and what of their work is committed.
+CHECK_ROW = re.compile(r'^\[([ x])\] (TODO|PENDING|DOING|READY|PAUSED|DONE|Committed)$')
+CHECK_ROWS = re.compile(r'^[ \t]*\[[ x]\] (?:TODO|PENDING|DOING|READY|PAUSED|DONE|Committed)[ \t]*$', re.M)
+
+
+def plain(name):
+    return re.sub(r'\s+', ' ', name.strip().strip('`*"').strip()).lower()
+
+
+def data_root():
+    config = tasky_config()
+    if not config:
+        return None
+    return config.parent if str(config).endswith(DATA_ROOT + 'tasky.md') else config.parent / DATA_ROOT
+
+
+def task_titles(folder=None):
+    # {status: {plain title}} for every task file outside backups, under folder or the data root.
+    found = {}
+    root = folder or data_root()
+    if not root or not root.is_dir():
+        return found
+    for path in root.rglob('*.md'):
+        if '.bak' in str(path):
+            continue
+        try:
+            head = path.read_text(encoding='utf-8')[:600]
+        except OSError:
+            continue
+        status = re.search(r'^Status:\s*([A-Z]+)\s*$', head, re.M)
+        title = re.search(r'^#\s+(.+?)\s*$', head, re.M)
+        if status and title:
+            found.setdefault(status.group(1), set()).add(plain(title.group(1)))
+    return found
+
+
+def checklist(body):
+    # [(checked, label, [the names under it])]
+    rows, row = [], None
+    for line in body.splitlines():
+        stripped = line.strip()
+        match = CHECK_ROW.match(stripped)
+        if match:
+            row = (match.group(1) == 'x', match.group(2), [])
+            rows.append(row)
+        elif row and stripped.startswith('- ') and line[:1].isspace():
+            row[2].append(stripped[2:])
+        elif stripped:
+            row = None
+    return rows
+
+
+def ended_milestone(command):
+    # The milestone folder of the task an ending set-status names.
+    args = command.split('set-status', 1)[-1].split()
+    root = data_root()
+    if len(args) < 5 or not root:
+        return None
+    for path in root.glob(f'**/{args[3]}/{args[4]}.md'):
+        return path.parent
+    return None
+
+
+def checklist_violation(body, ended, set_now):
+    if not re.search(r'^STATUS:', body, re.M):
+        return None
+    rows = checklist(body)
+    first = body.strip().splitlines()[0][:60]
+    if ended and not any(label == 'READY' for _, label, _ in rows):
+        return 'a task hand-back with no READY row under STATUS', first
+    if not rows:
+        return None
+    tasks = task_titles()
+    known = set().union(*tasks.values()) if tasks else set()
+    for checked, label, names in rows:
+        row = f'[{"x" if checked else " "}] {label}'
+        if not names:
+            return 'a checklist row with no task under it', row
+        if label == 'Committed':
+            for name in names:
+                parts = [p.strip() for p in name.split(' / ')]
+                if not (len(parts) == 3 or (len(parts) == 2 and parts[0] == 'main')):
+                    return 'a Committed entry not written "<worktree> / <branch> / <task>" or "main / <task>"', name
+                if plain(parts[-1]) not in known:
+                    return 'a Committed entry naming no task by its title', name
+            continue
+        if not checked:
+            if label != 'READY':
+                return 'an unchecked row other than READY or Committed', row
+            hit = [n for n in names if plain(n) in tasks.get('READY', set())]
+            if hit:
+                return 'a task at READY listed under [ ] READY', hit[0]
+            continue
+        if label != 'READY' and label.lower() not in set_now:
+            return f'a [x] {label} row for a status no task took this turn', row
+        missing = [n for n in names if plain(n) not in tasks.get(label, set())]
+        if missing:
+            return f'a task under [x] {label} that does not stand at {label}', missing[0]
+    if 'ready' in set_now and not any(c and l == 'READY' for c, l, _ in rows):
+        return 'a task just set ready with no [x] READY row', first
+    folder = ended and ended_milestone(ended)
+    if folder:
+        listed = {plain(n) for c, l, names in rows if c and l == 'READY' for n in names}
+        left = sorted(task_titles(folder).get('READY', set()) - listed)
+        if left:
+            return 'a task in this milestone at READY left off the [x] READY row', left[0]
+    return None
+
+
+def violation(reply, prompt, ended=False, handback=False, set_now=frozenset()):
     body = strip_code(reply)
     if ended and body.strip() and not re.search(r'^STATUS:', body, re.M):
         return 'a task hand-back with no STATUS: line', body.strip().splitlines()[0][:60]
     found = handback and next_step_violation(body, prompt)
     if found:
         return found
-    found = form_violation(body)
+    found = form_violation(body) or checklist_violation(body, ended, set_now)
     if found:
         return found
-    body = strip_links(body)
+    body = strip_links(CHECK_ROWS.sub('', body))
     for pattern, name in FORBIDDEN:
         match = re.search(pattern, body, re.M)
         if not match:
@@ -281,10 +405,15 @@ Never drop the words that say a result is wrong, partial or unfinished; without 
 the fact is false. A line that tells the user how to see the work moves into TEST IT.
 Keep the shape:
 
-STATUS: <where this task stands, one short sentence>
+STATUS: <what the result means for the user, one short sentence>
 
 - <a fact>
   - <a detail of that fact>
+
+[x] READY
+  - <task>
+[ ] Committed
+  - <worktree> / <branch> / <task>
 
 DOING NOW:
 - You: <a step the user can take meanwhile>
@@ -305,8 +434,11 @@ DECIDE: <the choice, in terms of what the user would notice>
   - <option>: <what it changes for them>
   - <option>: <what it changes for them>
 
-STATUS stays first and says what the result means for the user, in plain words. A second
-point is its own bullet. Drop a section left empty. Every step line starts with who acts, the user's
+STATUS stays first and says what the result means for the user, in plain words. A draft
+whose words read as finished for unfinished work is reworded. A second point is its own
+bullet. The checklist rows ("[x] READY", "[ ] READY", "[x] PAUSED" or another status,
+"[x] Committed", "[ ] Committed") and the tasks under them stay exactly as the draft gives
+them, right after STATUS and its bullets; they are the one place git state may show. Drop a section left empty. Every step line starts with who acts, the user's
 steps first: "You:" the user; "Me:" this chat; "Agent:" an agent this chat started;
 "Pi:" a pi run; "GPT:" a Codex run; "BG:" a command running in the background;
 anyone or anything else, by a short name for it ("CI:", a person's name). DOING
@@ -375,7 +507,7 @@ def main():
     if payload.get('stop_hook_active'):
         return
 
-    reply, prompt, ended, worked, sent, reviewed = transcript_tail(payload.get('transcript_path', ''))
+    reply, prompt, ended, worked, sent, reviewed, set_now = transcript_tail(payload.get('transcript_path', ''))
     reply = payload.get('last_assistant_message') or reply
     if sent >= MAX_SEND_BACKS:
         return
@@ -387,7 +519,7 @@ def main():
             'decision': 'block',
             'reason': (
                 'REPORT REVIEW (set up by the user in ~/.claude/hooks/tasky-report-gate): a task report '
-                'goes to a fresh reviewer before the user reads it. Spawn one Agent (model "opus") whose '
+                'goes to a fresh reviewer before the user reads it. Spawn one Agent (model "sonnet") whose '
                 'prompt is the brief between the markers below, word for word. Wait for its result, then '
                 'reply to the user with the report it returns.\n\n=== BRIEF ===\n' + brief + '\n=== END BRIEF ==='
             ),
@@ -397,15 +529,18 @@ def main():
     # The report form is for handing back tracked-task work: this turn's or a finished agent's.
     # A chat answer keeps its own shape.
     handback = bool(worked or re.match(AGENT_MESSAGE, prompt, re.S))
-    found = violation(reply, prompt, ended, handback)
+    found = violation(reply, prompt, ended, handback, set_now)
     if not found:
         return
 
     name, snippet = found
     if handback or re.search(r'^STATUS:', strip_code(reply), re.M):
         rewrite = (
-            'Rewrite it for them: STATUS: first, saying what the result '
-            'means for them, then "- " bullets, DOING NOW:, WAITING ON: and NEXT: (THEN: after DOING NOW, never a step of theirs) only if they have content, DECIDE: only '
+            'Rewrite it for them: STATUS: first, saying what the result means for them, then "- " '
+            'bullets, then the checklist as tasky\'s references/report.md gives it: "[x] READY" with '
+            'every task of this milestone at READY by its title ("[ ] READY" with this task when it is '
+            'not), "[x] <status>" for a status this turn set, "[x] Committed"/"[ ] Committed" with '
+            '"<worktree> / <branch> / <task>" or "main / <task>", rows with no task left out; then DOING NOW:, WAITING ON: and NEXT: (THEN: after DOING NOW, never a step of theirs) only if they have content, DECIDE: only '
             'for a choice tasky\'s SKILL.md Deciding lets surface; an option you would recommend is a '
             'step you take, never a choice, and a choice you made goes unsaid unless Deciding 5 keeps it. '
             'Cut a line with no consequence for them. Never '
