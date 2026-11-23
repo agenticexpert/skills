@@ -230,8 +230,10 @@ def form_violation(body):
                 return "the user's step under THEN: — it shows once the running work ends", stripped[:60]
             fact = stripped[head.end():].strip()
             section = head.group(1)
-        elif CHECK_ROW.match(stripped):
+        elif CHECK_HEAD.match(stripped):
             section = 'CHECKLIST'
+            continue
+        elif section == 'CHECKLIST' and CHECK_ITEM.match(stripped):
             continue
         elif stripped.startswith('- '):
             if section == 'THEN' and stripped.startswith('- You:'):
@@ -253,9 +255,10 @@ def form_violation(body):
     return None
 
 
-# The checklist under STATUS: where this report's tasks stand, and what of their work is committed.
-CHECK_ROW = re.compile(r'^\[([ x])\] (TODO|PENDING|DOING|READY|PAUSED|DONE|Committed)$')
-CHECK_ROWS = re.compile(r'^[ \t]*\[[ x]\] (?:TODO|PENDING|DOING|READY|PAUSED|DONE|Committed)[ \t]*$', re.M)
+# The checklist under STATUS: a status or Committed heading, a box per task under it.
+CHECK_HEAD = re.compile(r'^(TODO|PENDING|DOING|READY|PAUSED|DONE|Committed)$')
+CHECK_ITEM = re.compile(r'^\[([ x])\] (.+)$')
+CHECK_HEADS = re.compile(r'^[ \t]*(?:TODO|PENDING|DOING|READY|PAUSED|DONE|Committed)[ \t]*$', re.M)
 
 
 def plain(name):
@@ -290,16 +293,17 @@ def task_titles(folder=None):
 
 
 def checklist(body):
-    # [(checked, label, [the names under it])]
+    # [(heading, [(checked, name)])]
     rows, row = [], None
     for line in body.splitlines():
         stripped = line.strip()
-        match = CHECK_ROW.match(stripped)
-        if match:
-            row = (match.group(1) == 'x', match.group(2), [])
+        head = CHECK_HEAD.match(stripped)
+        item = CHECK_ITEM.match(stripped)
+        if head:
+            row = (head.group(1), [])
             rows.append(row)
-        elif row and stripped.startswith('- ') and line[:1].isspace():
-            row[2].append(stripped[2:])
+        elif row and item:
+            row[1].append((item.group(1) == 'x', item.group(2)))
         elif stripped:
             row = None
     return rows
@@ -321,44 +325,41 @@ def checklist_violation(body, ended, set_now):
         return None
     rows = checklist(body)
     first = body.strip().splitlines()[0][:60]
-    if ended and not any(label == 'READY' for _, label, _ in rows):
-        return 'a task hand-back with no READY row under STATUS', first
+    if ended and not any(label == 'READY' for label, _ in rows):
+        return 'a task hand-back with no READY heading under STATUS', first
     if not rows:
         return None
     tasks = task_titles()
     known = set().union(*tasks.values()) if tasks else set()
-    for checked, label, names in rows:
-        row = f'[{"x" if checked else " "}] {label}'
-        if not names:
-            return 'a checklist row with no task under it', row
+    for label, items in rows:
+        if not items:
+            return 'a checklist heading with no "[x] task" or "[ ] task" under it', label
         if label == 'Committed':
-            for name in names:
+            for _, name in items:
                 parts = [p.strip() for p in name.split(' / ')]
                 if not (len(parts) == 3 or (len(parts) == 2 and parts[0] == 'main')):
                     return 'a Committed entry not written "<worktree> / <branch> / <task>" or "main / <task>"', name
                 if plain(parts[-1]) not in known:
                     return 'a Committed entry naming no task by its title', name
             continue
-        if not checked:
-            if label != 'READY':
-                return 'an unchecked row other than READY or Committed', row
-            hit = [n for n in names if plain(n) in tasks.get('READY', set())]
-            if hit:
-                return 'a task at READY listed under [ ] READY', hit[0]
-            continue
-        if label != 'READY' and label.lower() not in set_now:
-            return f'a [x] {label} row for a status no task took this turn', row
-        missing = [n for n in names if plain(n) not in tasks.get(label, set())]
-        if missing:
-            return f'a task under [x] {label} that does not stand at {label}', missing[0]
-    if 'ready' in set_now and not any(c and l == 'READY' for c, l, _ in rows):
-        return 'a task just set ready with no [x] READY row', first
+        standing = tasks.get(label, set())
+        for checked, name in items:
+            if not checked:
+                if plain(name) in standing:
+                    return f'a task at {label} left unchecked under {label}', name
+                continue
+            if label != 'READY' and label.lower() not in set_now:
+                return f'a checked task under {label}, a status no task took this turn', name
+            if plain(name) not in standing:
+                return f'a task checked under {label} that does not stand at {label}', name
+    checked_ready = {plain(n) for l, items in rows if l == 'READY' for c, n in items if c}
+    if 'ready' in set_now and not checked_ready:
+        return 'a task just set ready with no "[x] task" under READY', first
     folder = ended and ended_milestone(ended)
     if folder:
-        listed = {plain(n) for c, l, names in rows if c and l == 'READY' for n in names}
-        left = sorted(task_titles(folder).get('READY', set()) - listed)
+        left = sorted(task_titles(folder).get('READY', set()) - checked_ready)
         if left:
-            return 'a task in this milestone at READY left off the [x] READY row', left[0]
+            return 'a task in this milestone at READY left off READY', left[0]
     return None
 
 
@@ -372,7 +373,7 @@ def violation(reply, prompt, ended=False, handback=False, set_now=frozenset()):
     found = form_violation(body) or checklist_violation(body, ended, set_now)
     if found:
         return found
-    body = strip_links(CHECK_ROWS.sub('', body))
+    body = strip_links(CHECK_HEADS.sub('', body))
     for pattern, name in FORBIDDEN:
         match = re.search(pattern, body, re.M)
         if not match:
@@ -410,10 +411,10 @@ STATUS: <what the result means for the user, one short sentence>
 - <a fact>
   - <a detail of that fact>
 
-[x] READY
-  - <task>
-[ ] Committed
-  - <worktree> / <branch> / <task>
+READY
+  [x] <task>
+Committed
+  [ ] <worktree> / <branch> / <task>
 
 DOING NOW:
 - You: <a step the user can take meanwhile>
@@ -436,9 +437,9 @@ DECIDE: <the choice, in terms of what the user would notice>
 
 STATUS stays first and says what the result means for the user, in plain words. A draft
 whose words read as finished for unfinished work is reworded. A second point is its own
-bullet. The checklist rows ("[x] READY", "[ ] READY", "[x] PAUSED" or another status,
-"[x] Committed", "[ ] Committed") and the tasks under them stay exactly as the draft gives
-them, right after STATUS and its bullets; they are the one place git state may show. Drop a section left empty. Every step line starts with who acts, the user's
+bullet. The checklist (a READY, PAUSED or other status heading, or a Committed heading,
+each with "[x] task" or "[ ] task" lines under it) stays exactly as the draft gives it,
+right after STATUS and its bullets; it is the one place git state may show. Drop a section left empty. Every step line starts with who acts, the user's
 steps first: "You:" the user; "Me:" this chat; "Agent:" an agent this chat started;
 "Pi:" a pi run; "GPT:" a Codex run; "BG:" a command running in the background;
 anyone or anything else, by a short name for it ("CI:", a person's name). DOING
@@ -537,10 +538,11 @@ def main():
     if handback or re.search(r'^STATUS:', strip_code(reply), re.M):
         rewrite = (
             'Rewrite it for them: STATUS: first, saying what the result means for them, then "- " '
-            'bullets, then the checklist as tasky\'s references/report.md gives it: "[x] READY" with '
-            'every task of this milestone at READY by its title ("[ ] READY" with this task when it is '
-            'not), "[x] <status>" for a status this turn set, "[x] Committed"/"[ ] Committed" with '
-            '"<worktree> / <branch> / <task>" or "main / <task>", rows with no task left out; then DOING NOW:, WAITING ON: and NEXT: (THEN: after DOING NOW, never a step of theirs) only if they have content, DECIDE: only '
+            'bullets, then the checklist as tasky\'s references/report.md gives it: a READY heading '
+            'with "[x] <title>" for every task of this milestone at READY ("[ ] <title>" for this task '
+            'when it is not), a heading for any other status this turn set, and a Committed heading '
+            'with "[x]" or "[ ]" and "<worktree> / <branch> / <task>" or "main / <task>", headings '
+            'with no task left out; then DOING NOW:, WAITING ON: and NEXT: (THEN: after DOING NOW, never a step of theirs) only if they have content, DECIDE: only '
             'for a choice tasky\'s SKILL.md Deciding lets surface; an option you would recommend is a '
             'step you take, never a choice, and a choice you made goes unsaid unless Deciding 5 keeps it. '
             'Cut a line with no consequence for them. Never '
