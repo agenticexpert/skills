@@ -88,7 +88,7 @@ def tasky_in_force():
 # This hook's own send-back, as the transcript records it. Hook feedback and agent hand-backs
 # are meta entries, so a turn runs from the user's last real message across all of them.
 SENT_BACK = re.compile(r'Stop hook feedback:\s*(REPORT REVIEW|REPORT FORM VIOLATION)\b')
-MAX_SEND_BACKS = 2  # after two send-backs in a turn, the reply reaches the user
+MAX_SEND_BACKS = 3  # after three form send-backs in a turn, the reply reaches the user; the review is not one
 
 
 # A status this turn set on a task, by any shell.
@@ -143,7 +143,7 @@ def transcript_tail(path):
         elif kind == 'user' and entry.get('isMeta'):
             back = SENT_BACK.match(text_of(entry))
             if back:
-                sent += 1
+                sent += back.group(1) == 'REPORT FORM VIOLATION'
                 # Walking back, no ending command seen yet: this review came after the task ended.
                 reviewed = reviewed or (back.group(1) == 'REPORT REVIEW' and not ended)
         elif kind == 'user':
@@ -325,10 +325,20 @@ def checklist_violation(body, ended, set_now):
         return None
     rows = checklist(body)
     first = body.strip().splitlines()[0][:60]
-    if ended and not any(label == 'READY' for label, _ in rows):
-        return 'a task hand-back with no READY heading under STATUS', first
+    if ended and not rows:
+        return 'a task hand-back with no checklist under STATUS', first
     if not rows:
         return None
+    seen = {}
+    for label, items in rows:
+        for checked, name in items:
+            if checked and label != 'Committed':
+                if plain(name) in seen and seen[plain(name)] != label:
+                    return f'a task checked under both {seen[plain(name)]} and {label}; a task stands at one status', name
+                seen[plain(name)] = label
+    for status in sorted(set_now & {'ready', 'paused', 'done'}):
+        if not any(l == status.upper() and any(c for c, _ in items) for l, items in rows):
+            return f'a task this turn set to {status.upper()} with no "[x] task" under {status.upper()}', first
     tasks = task_titles()
     known = set().union(*tasks.values()) if tasks else set()
     for label, items in rows:
@@ -353,8 +363,6 @@ def checklist_violation(body, ended, set_now):
             if plain(name) not in standing:
                 return f'a task checked under {label} that does not stand at {label}', name
     checked_ready = {plain(n) for l, items in rows if l == 'READY' for c, n in items if c}
-    if 'ready' in set_now and not checked_ready:
-        return 'a task just set ready with no "[x] task" under READY', first
     folder = ended and ended_milestone(ended)
     if folder:
         left = sorted(task_titles(folder).get('READY', set()) - checked_ready)
@@ -538,9 +546,10 @@ def main():
     if handback or re.search(r'^STATUS:', strip_code(reply), re.M):
         rewrite = (
             'Rewrite it for them: STATUS: first, saying what the result means for them, then "- " '
-            'bullets, then the checklist as tasky\'s references/report.md gives it: a READY heading '
-            'with "[x] <title>" for every task of this milestone at READY ("[ ] <title>" for this task '
-            'when it is not), a heading for any other status this turn set, and a Committed heading '
+            'bullets, then the checklist as tasky\'s references/report.md gives it, each task checked '
+            'only under the status it stands at now: a READY heading with "[x] <title>" for every task '
+            'of this milestone at READY ("[ ] <title>" for this task when it is not at READY and not '
+            'closed), a heading for the status this turn set (DONE, PAUSED), and a Committed heading '
             'with "[x]" or "[ ]" and "<worktree> / <branch> / <task>" or "main / <task>", headings '
             'with no task left out; then DOING NOW:, WAITING ON: and NEXT: (THEN: after DOING NOW, never a step of theirs) only if they have content, DECIDE: only '
             'for a choice tasky\'s SKILL.md Deciding lets surface; an option you would recommend is a '
