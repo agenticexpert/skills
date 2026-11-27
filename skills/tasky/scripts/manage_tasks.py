@@ -24,7 +24,7 @@ import argparse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tasky_config import SESSION, TASKY_ROOT, validate_slug, validate_slash_path
 from claims import describe, milestone_other_holder, other_holder, with_session
-from position import CRITERION_RE, criteria_lines, settle
+from position import CRITERION_RE, criteria_lines, is_marker, label, settle
 
 VALID_STATUSES = {"X", "TODO", "PENDING", "DOING", "PAUSED", "READY", "DONE"}
 
@@ -592,17 +592,33 @@ def cmd_list(args):
         print("No tasks found.")
         return
 
-    for i, slug in enumerate(ordered, 1):
+    branches = data.get("branches", {})
+
+    def branch_line(mid):
+        """A branch marker in the order: where it goes, or where its closing returns to."""
+        rec = branches.get(mid, {})
+        if rec.get("destination") == t_key:
+            return f"   ⤶  back to {label(rec.get('origin', ''))}"
+        return f"   ⤷  to {label(rec.get('destination', '?'))}"
+
+    i = 0
+    for slug in ordered:
+        if is_marker(slug):
+            print(branch_line(slug))
+            continue
+        i += 1
         task_path = os.path.join(mpath, f"{slug}.md")
         status = read_task_status(task_path) if os.path.isfile(task_path) else "?"
         print(f"  {i:>2}. {slug}  [{status}]")
 
     if oob_order:
         print("  ---")
-        for slug in sorted(oob_order):
+        for slug in sorted(s for s in oob_order if not is_marker(s)):
             task_path = os.path.join(mpath, f"{slug}.md")
             status = read_task_status(task_path) if os.path.isfile(task_path) else "?"
             print(f"   ·  {slug}  [{status}]")
+        for slug in (s for s in oob_order if is_marker(s)):
+            print(branch_line(slug))
 
 
 # ---------------------------------------------------------------------------
