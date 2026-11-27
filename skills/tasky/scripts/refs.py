@@ -61,19 +61,31 @@ def path_lines(refs):
 
 
 def add(roadmap_dir, owner_dir, ref):
-    if any(r["name"] == ref["name"] for d in owners(roadmap_dir) for r in read(d)):
-        raise ValueError(f"reference '{ref['name']}' already exists in roadmap "
-                         f"'{os.path.basename(roadmap_dir)}'; remove it first")
+    """One name points at one path across the roadmap; the same name and path may sit on several owners."""
+    for d in owners(roadmap_dir):
+        for r in read(d):
+            if r["name"] != ref["name"]:
+                continue
+            if r["path"] != ref["path"]:
+                raise ValueError(f"reference '{ref['name']}' already points at {r['path']} in roadmap "
+                                 f"'{os.path.basename(roadmap_dir)}'; pick another name or remove it first")
+            if os.path.samefile(d, owner_dir):
+                raise ValueError(f"reference '{ref['name']}' is already on "
+                                 f"'{os.path.relpath(owner_dir, os.path.dirname(roadmap_dir))}'")
     write(owner_dir, read(owner_dir) + [ref])
 
 
-def remove(roadmap_dir, name):
+def remove(roadmap_dir, name, owner_dir=None):
+    """Take the reference off owner_dir only, or off every owner when none is given."""
     found = False
     for d in owners(roadmap_dir):
+        if owner_dir and not os.path.samefile(d, owner_dir):
+            continue
         stored = read(d)
         kept = [r for r in stored if r["name"] != name]
         if len(kept) < len(stored):
             write(d, kept)
             found = True
     if not found:
-        raise ValueError(f"no reference '{name}' in roadmap '{os.path.basename(roadmap_dir)}'")
+        where = os.path.relpath(owner_dir or roadmap_dir, os.path.dirname(roadmap_dir))
+        raise ValueError(f"no reference '{name}' on '{where}'")

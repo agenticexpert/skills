@@ -293,12 +293,13 @@ A reference attaches a file or link (an overarching spec, a design doc) to a roa
 
 ```
 python {skills}/scripts/manage_refs.py add    <project> <roadmap> <name> <path> [--track <track>] [--milestone <milestone>] [--slots 1,2]
-python {skills}/scripts/manage_refs.py remove <project> <roadmap> <name>
+python {skills}/scripts/manage_refs.py remove <project> <roadmap> <name> [--track <track>] [--milestone <milestone>]
 ```
 
 - No `--track` → the reference is on the roadmap. `--milestone` needs `--track`.
 - `--slots` → the milestone view draws `┄` under those positions; without it the cells stay blank.
-- `<name>` is a slug, unique within the roadmap. `<path>` is stored as given: a repo-relative path or a URL.
+- `<name>` is a slug naming one path within the roadmap. The same name and path may sit on several roadmaps, tracks or milestones (add it once per owner); the same name on another path is refused. `<path>` is stored as given: a repo-relative path or a URL.
+- `remove` with `--track` (and `--milestone`) takes the reference off that one owner; without them, off every owner.
 - A reference is stored in its owner's directory, in `.references.json` (`{"name", "path", "slots"?}`), never in `project.json`. Renaming or moving the roadmap, track or milestone carries its references; deleting it removes them.
 - Views show references in their own band below the out-of-band rows, labelled `§`, with each path listed under the legend. The track view shows roadmap and track references; the milestone view shows all of them, or with a track filter that track's and the roadmap's; the task list shows the roadmap's, its track's and its milestone's, below the tasks.
 

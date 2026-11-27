@@ -4,10 +4,12 @@ manage_refs.py — Attach references (a spec, a design doc) to a roadmap, a trac
 
 Usage:
   python manage_refs.py add    <project> <roadmap> <name> <path> [--track <track>] [--milestone <milestone>] [--slots 1,2]
-  python manage_refs.py remove <project> <roadmap> <name>
+  python manage_refs.py remove <project> <roadmap> <name> [--track <track>] [--milestone <milestone>]
 
 A reference shows in its own band in the track and milestone views. --slots draws it under those
-milestone positions; without it its cells stay blank.
+milestone positions; without it its cells stay blank. One name may sit on several owners when it
+points at the same path. remove with --track/--milestone takes it off that one owner; without them,
+off every owner.
 """
 
 import argparse
@@ -34,7 +36,8 @@ def parse_slots(value):
     return slots
 
 
-def cmd_add(args):
+def owner(args):
+    """The roadmap directory and the directory of the roadmap, track or milestone the flags name."""
     for value, what in [(args.project, "project slug"), (args.roadmap, "roadmap slug"), (args.name, "reference name")]:
         validate_slug(value, what)
     roadmap_dir = os.path.join(TASKY_ROOT, args.project, args.roadmap)
@@ -53,6 +56,11 @@ def cmd_add(args):
         where = os.path.join(where, args.milestone)
         if not os.path.isdir(where):
             fail(f"milestone '{args.roadmap}/{args.track}/{args.milestone}' does not exist")
+    return roadmap_dir, where
+
+
+def cmd_add(args):
+    roadmap_dir, where = owner(args)
     ref = {"name": args.name, "path": args.path}
     if args.slots:
         ref["slots"] = parse_slots(args.slots)
@@ -64,11 +72,12 @@ def cmd_add(args):
 
 
 def cmd_remove(args):
+    roadmap_dir, where = owner(args)
     try:
-        refs.remove(os.path.join(TASKY_ROOT, args.project, args.roadmap), args.name)
+        refs.remove(roadmap_dir, args.name, where if args.track else None)
     except ValueError as e:
         fail(str(e))
-    print(f"Removed reference {args.name}")
+    print(f"Removed reference {refs.label(dict(name=args.name, scope=args.milestone or args.track))}")
 
 
 def main():
@@ -83,6 +92,8 @@ def main():
     p_remove = sub.add_parser("remove", help="Remove a reference")
     for a in ("project", "roadmap", "name"):
         p_remove.add_argument(a)
+    p_remove.add_argument("--track", help="Remove it from this track only")
+    p_remove.add_argument("--milestone", help="Remove it from this milestone only (needs --track)")
     args = parser.parse_args()
     {"add": cmd_add, "remove": cmd_remove}[args.command](args)
 
